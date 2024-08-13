@@ -1,6 +1,6 @@
 // src/instruction.rs
-#[allow(dead_code)]
 #[derive(Clone)]
+#[allow(dead_code)]
 pub enum Instruction {
     Add(usize, usize),
     Sub(usize, usize),
@@ -23,8 +23,6 @@ pub enum Instruction {
     Shl(usize, usize),  // SHL R1, R2 (R1 << R2)
     Shr(usize, usize),  // SHR R1, R2 (R1 >> R2)
 
-    Load(usize, usize),
-    Store(usize, usize),
     Mov(usize, usize),
     Jmp(usize),
     Jz(usize, usize),
@@ -33,9 +31,6 @@ pub enum Instruction {
     Halt,
     Nop,
     Out(usize),
-
-    Push(usize),        // PUSH R1
-    Pop(usize),         // POP R1
 
     Jg(usize, usize),   // JG R1, LABEL
     Jl(usize, usize),   // JL R1, LABEL
@@ -46,113 +41,77 @@ pub enum Instruction {
     LoadVar(usize, String),    // LOADVAR "var_name"
     StoreVar(usize, String),   // STOREVAR "var_name"
 
-    DeclareFunc(String, usize, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
-    CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args]
+    DeclareFunc(String, Vec<String>, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
+    CallFunc(String, Vec<String>), // CALLFUNC "func_name", [args]
     RetFunc(Vec<usize>), // RETFUNC
 }
 
 impl Instruction {
-    pub fn execute(&self, vm: &mut crate::vm::VM) {
+    // execute() is a method that takes a mutable reference to a VM instance and returns nothing or an i32
+    pub fn execute(&self, vm: &mut crate::vm::VM) -> Option<Vec<i32>> {
         match self {
-            Instruction::Add(r1, r2) => vm.registers[*r1] += vm.registers[*r2],
-            Instruction::Sub(r1, r2) => vm.registers[*r1] -= vm.registers[*r2],
-            Instruction::Mul(r1, r2) => vm.registers[*r1] *= vm.registers[*r2],
-            Instruction::Div(r1, r2) => vm.registers[*r1] /= vm.registers[*r2],
-            Instruction::Mod(r1, r2) => vm.registers[*r1] %= vm.registers[*r2],
-            Instruction::Exp(r1, r2) => vm.registers[*r1] = vm.registers[*r1].pow(vm.registers[*r2] as u32),
-            
-            Instruction::Gt(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] > vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Lt(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] < vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Gte(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] >= vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Lte(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] <= vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Eq(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] == vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Ne(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 },
+            Instruction::Add(r1, r2) => { vm.registers[*r1] += vm.registers[*r2]; None } ,
+            Instruction::Sub(r1, r2) => { vm.registers[*r1] -= vm.registers[*r2]; None },
+            Instruction::Mul(r1, r2) => { vm.registers[*r1] *= vm.registers[*r2]; None },
+            Instruction::Div(r1, r2) => { vm.registers[*r1] /= vm.registers[*r2]; None },
+            Instruction::Mod(r1, r2) => { vm.registers[*r1] %= vm.registers[*r2]; None },
+            Instruction::Exp(r1, r2) => { vm.registers[*r1] = vm.registers[*r1].pow(vm.registers[*r2] as u32); None },
 
-            Instruction::And(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] != 0 && vm.registers[*r2] != 0 { 1 } else { 0 },
-            Instruction::Or(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] != 0 || vm.registers[*r2] != 0 { 1 } else { 0 },
-            Instruction::Xor(r1, r2) => vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 },
-            Instruction::Not(r) => vm.registers[*r] = if vm.registers[*r] == 0 { 1 } else { 0 },
-            Instruction::Shl(r1, r2) => vm.registers[*r1] <<= vm.registers[*r2],
-            Instruction::Shr(r1, r2) => vm.registers[*r1] >>= vm.registers[*r2],
+            Instruction::Gt(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] > vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Lt(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] < vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Gte(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] >= vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Lte(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] <= vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Eq(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] == vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Ne(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 }; None },
 
-            Instruction::Load(r, mem) => vm.registers[*r] = vm.memory[*mem],
-            Instruction::Store(r, mem) => vm.memory[*mem] = vm.registers[*r],
-            Instruction::Mov(r1, r2) => vm.registers[*r1] = vm.registers[*r2],
-            Instruction::Jmp(addr) => vm.pc = *addr,
-            Instruction::Jz(r, addr) => if vm.registers[*r] == 0 { vm.pc = *addr },
-            Instruction::Jnz(r, addr) => if vm.registers[*r] != 0 { vm.pc = *addr },
-            Instruction::Cmp(_r1, _r2) => { /* Placeholder for future flags */ },
-            Instruction::Out(r) => println!("OUT: {}", vm.registers[*r]),
-            Instruction::Nop => { /* No operation */ },
-            Instruction::Halt => vm.running = false,
+            Instruction::And(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != 0 && vm.registers[*r2] != 0 { 1 } else { 0 }; None },
+            Instruction::Or(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != 0 || vm.registers[*r2] != 0 { 1 } else { 0 }; None },
+            Instruction::Xor(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 }; None },
+            Instruction::Not(r) => { vm.registers[*r] = if vm.registers[*r] == 0 { 1 } else { 0 }; None },
+            Instruction::Shl(r1, r2) => { vm.registers[*r1] <<= vm.registers[*r2]; None },
 
-            Instruction::Push(r) => {
-                vm.memory[vm.sp] = vm.registers[*r];
-                vm.sp -= 1;
-            }
-            Instruction::Pop(r) => {
-                vm.sp += 1;
-                vm.registers[*r] = vm.memory[vm.sp];
-            }
+            Instruction::Shr(r1, r2) => { vm.registers[*r1] >>= vm.registers[*r2]; None },
+            Instruction::Mov(r1, r2) => { vm.registers[*r1] = vm.registers[*r2]; None },
+            Instruction::Jmp(addr) => { vm.pc = *addr; None },
+            Instruction::Jz(r, addr) => { if vm.registers[*r] == 0 { vm.pc = *addr }; None },
+            Instruction::Jnz(r, addr) => { if vm.registers[*r] != 0 { vm.pc = *addr }; None },
+            Instruction::Cmp(_r1, _r2) => { /* Placeholder for future flags */ None },
+            Instruction::Out(r) => { println!("OUT: {}", vm.registers[*r]); None },
+            Instruction::Nop => { /* No operation */ None },
+            Instruction::Halt => { vm.running = false; None },
 
-            Instruction::Jg(r, addr) => if vm.registers[*r] > 0 { vm.pc = *addr },
-            Instruction::Jl(r, addr) => if vm.registers[*r] < 0 { vm.pc = *addr },
-            Instruction::Je(r, addr) => if vm.registers[*r] == 0 { vm.pc = *addr },
-            Instruction::Jne(r, addr) => if vm.registers[*r] != 0 { vm.pc = *addr },
+            Instruction::Jg(r, addr) => { if vm.registers[*r] > 0 { vm.pc = *addr }; None },
+            Instruction::Jl(r, addr) => { if vm.registers[*r] < 0 { vm.pc = *addr }; None },
+            Instruction::Je(r, addr) => { if vm.registers[*r] == 0 { vm.pc = *addr }; None },
+            Instruction::Jne(r, addr) => { if vm.registers[*r] != 0 { vm.pc = *addr }; None },
+
 
             Instruction::DeclareVar(var_name, value) => {
                 vm.declare_variable(var_name.clone(), *value);
+                None
             },
             Instruction::LoadVar(target_register, var_name) => {
-                if let Some(value) = vm.get_variable(var_name) {
-                    vm.registers[*target_register] = value; // Load variable into specified register
-                } else {
-                    eprintln!("Error: Variable '{}' not found.", var_name);
-                }
+                vm.registers[*target_register] = vm.get_variable(var_name).unwrap_or(0);
+                None
             },
             Instruction::StoreVar(source_register, var_name) => {
-                if let Some(_) = vm.variables.get(var_name) {
-                    vm.set_variable(var_name, vm.registers[*source_register]); // Store specified register into variable
-                } else {
-                    eprintln!("Error: Variable '{}' not found.", var_name);
-                }
+                vm.set_variable(var_name, vm.registers[*source_register]);
+                None
             },
 
-            Instruction::DeclareFunc(func_name, num_params, instructions) => {
-                vm.functions.insert(func_name.clone(), (*num_params, instructions.clone()));
+            Instruction::DeclareFunc(func_name, params, instructions) => {
+                vm.declare_function(func_name.clone(), params.clone(), instructions.clone());
+                None
             },
+
             Instruction::CallFunc(func_name, args) => {
-                if let Some((num_params, instructions)) = vm.functions.get(func_name) {
-                    if args.len() != *num_params {
-                        eprintln!("Error: Function '{}' expects {} arguments, but {} were provided.", func_name, num_params, args.len());
-                        return;
-                    }
-
-                    let old_pc = vm.pc;
-                    let old_sp = vm.sp;
-
-                    for (i, arg) in args.iter().enumerate() {
-                        vm.registers[i] = vm.registers[*arg];
-                    }
-
-                    vm.pc = 0;
-                    vm.sp -= args.len(); // Reserve space for the arguments
-                    vm.execute(instructions.clone());
-
-                    vm.pc = old_pc;
-                    vm.sp = old_sp;
-                } else {
-                    eprintln!("Error: Function '{}' not found.", func_name);
-                }
+                vm.call_function(func_name, args.clone());
+                None
             },
+
             Instruction::RetFunc(register_indices) => {
-                let return_values: Vec<usize> = register_indices.iter().map(|&i| vm.registers[i] as usize).collect();
-                
-                for (i, value) in return_values.iter().enumerate() {
-                    vm.registers[i] = *value as i32;
-                }
-                
-                vm.pc = usize::MAX; // Stop the VM
+                let return_values: Vec<i32> = register_indices.iter().map(|&i| vm.registers[i]).collect();
+                Some(return_values)
             },
         }
     }
