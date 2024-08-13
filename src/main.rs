@@ -23,8 +23,6 @@ fn main() {
         instruction::Instruction::Out(0),
 
         instruction::Instruction::Halt,
-
-        // This program calculates the result of (a + b) * c, which is (10 + 4) * 6 = 84
     ];
 
     vm.execute(program);
