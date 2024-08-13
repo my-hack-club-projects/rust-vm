@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 pub struct Scope {
-    memory: [i32; 1024],
     variables: HashMap<String, usize>,
     functions: HashMap<String, (Vec<String>, Vec<crate::instruction::Instruction>)>,
 }
@@ -9,7 +8,6 @@ pub struct Scope {
 impl Default for Scope {
     fn default() -> Self {
         Scope {
-            memory: [0; 1024],
             variables: HashMap::new(),
             functions: HashMap::new(),
         }
@@ -20,6 +18,7 @@ pub struct VM {
     pub pc: usize,
     pub running: bool,
 
+    pub memory: Vec<i32>,
     pub registers: [i32; 8],
     pub scopes: Vec<Scope>,
 }
@@ -29,6 +28,7 @@ impl VM {
         VM {
             pc: 0,
             running: true,
+            memory: vec![0; 1024],
             registers: [0; 8],
             scopes: vec![Scope::default()],
         }
@@ -58,8 +58,8 @@ impl VM {
 
     pub fn declare_variable(&mut self, name: String, value: i32) {
         if let Some(current_scope) = self.scopes.last_mut() {
-            let address = current_scope.memory.iter().position(|&x| x == 0).unwrap_or(0);
-            current_scope.memory[address] = value; // Assign the value to memory
+            let address = self.memory.iter().position(|&x| x == 0).unwrap_or(0);
+            self.memory[address] = value; // Assign the value to memory
             current_scope.variables.insert(name, address); // Store the variable name and its address
         }
     }
@@ -73,7 +73,7 @@ impl VM {
     pub fn get_variable(&self, name: &str) -> Option<i32> {
         for scope in self.scopes.iter().rev() {
             if let Some(&address) = scope.variables.get(name) {
-                return Some(scope.memory[address]);
+                return Some(self.memory[address]);
             }
         }
 
@@ -95,7 +95,7 @@ impl VM {
     pub fn set_variable(&mut self, name: &str, value: i32) {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(&address) = scope.variables.get(name) {
-                scope.memory[address] = value;
+                self.memory[address] = value;
                 return;
             }
         }
@@ -141,6 +141,7 @@ impl VM {
     
         // Create the parameter variables that point to the addresses of the arguments
         for (param, &address) in params.iter().zip(addresses.iter()) {
+            println!("Declaring variable {} at address {}", param, address);
             self.declare_variable_from_memory(param.clone(), address); // This also assigns them the values of the arguments
         }
     
