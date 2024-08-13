@@ -122,7 +122,7 @@ impl VM {
         }
     }
 
-    pub fn call_function(&mut self, name: &str, args: Vec<String>) {
+    pub fn call_function(&mut self, name: &str, args_indices: Vec<usize>) {
         // Find the function definition immutably (use self.get_variable)
         let (params, instructions, captured_scope) = {
             let function = self.get_variable(name).unwrap();
@@ -134,11 +134,12 @@ impl VM {
         };
     
         // Check the number of arguments
-        if args.len() != params.len() {
-            panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args.len());
+        if args_indices.len() != params.len() {
+            panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args_indices.len());
         }
     
-        let addresses: Vec<usize> = args.iter().map(|arg| self.get_variable_address(arg).unwrap()).collect();
+        // Get the values from the registers at the argument indices
+        let values = args_indices.iter().map(|&i| self.registers[i as usize]).collect::<Vec<i32>>();
     
         // Mutable operations
         let old_scopes = self.scopes.clone();
@@ -147,9 +148,9 @@ impl VM {
         self.scopes = vec![captured_scope];
         self.pc = 0;
     
-        // Create the parameter variables that point to the addresses of the arguments
-        for (param, &address) in params.iter().zip(addresses.iter()) {
-            self.declare_variable_from_memory(param.clone(), address);
+        // Declare the parameter variables with the values
+        for (param, &value) in params.iter().zip(values.iter()) {
+            self.declare_variable(param.clone(), value);
         }
     
         // Execute the function

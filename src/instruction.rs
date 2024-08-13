@@ -38,12 +38,14 @@ pub enum Instruction {
     Je(usize, usize),   // JE R1, LABEL
     Jne(usize, usize),  // JNE R1, LABEL
 
-    DeclareVar(String, i32), // DECLAREVAR "var_name", value
+    LoadLiteral(usize, i32), // LOADLITERAL R1, value
+
+    DeclareVar(usize, String), // DECLAREVAR "var_name", value
     LoadVar(usize, String),    // LOADVAR "var_name"
     StoreVar(usize, String),   // STOREVAR "var_name"
 
     DeclareFunc(String, Vec<String>, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
-    CallFunc(String, Vec<String>), // CALLFUNC "func_name", [args]
+    CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args as register indices]
     RetFunc(Vec<usize>), // RETFUNC
 }
 
@@ -86,9 +88,10 @@ impl Instruction {
             Instruction::Je(r, addr) => { if vm.registers[*r] == 0 { vm.pc = *addr }; None },
             Instruction::Jne(r, addr) => { if vm.registers[*r] != 0 { vm.pc = *addr }; None },
 
+            Instruction::LoadLiteral(r, value) => { vm.registers[*r] = *value; None },
 
-            Instruction::DeclareVar(var_name, value) => {
-                vm.declare_variable(var_name.clone(), *value);
+            Instruction::DeclareVar(source_register, var_name) => {
+                vm.declare_variable(var_name.clone(), vm.registers[*source_register]);
                 None
             },
             Instruction::LoadVar(target_register, var_name) => {
@@ -110,7 +113,7 @@ impl Instruction {
             },
 
             Instruction::CallFunc(func_name, args) => {
-                vm.call_function(func_name, args.clone());
+                vm.call_function(func_name, args.to_vec());
                 None
             },
 

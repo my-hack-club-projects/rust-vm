@@ -32,16 +32,14 @@ fn main() {
         instruction::Instruction::DeclareFunc("recursion".to_string(), vec!["n".to_string()], vec![
             instruction::Instruction::LoadVar(0, "n".to_string()),
             instruction::Instruction::Out(0),
-            instruction::Instruction::DeclareVar("addition".to_string(), 1),
-            instruction::Instruction::LoadVar(1, "addition".to_string()),
+            instruction::Instruction::LoadLiteral(1, 1), // Load 1 into register 1
             instruction::Instruction::Add(0, 1),
-            instruction::Instruction::StoreVar(0, "addition".to_string()),
-            instruction::Instruction::CallFunc("recursion".to_string(), vec!["addition".to_string()]),
-            instruction::Instruction::RetFunc(vec![0]),
+            instruction::Instruction::CallFunc("recursion".to_string(), vec![0]),
+            instruction::Instruction::RetFunc(vec![0]), // doesn't do anything now, as the recursion never ends
         ]),
 
-        instruction::Instruction::DeclareVar("myVar".to_string(), 0),
-        instruction::Instruction::CallFunc("recursion".to_string(), vec!["myVar".to_string()]),
+        instruction::Instruction::LoadLiteral(0, 999),
+        instruction::Instruction::CallFunc("recursion".to_string(), vec![0]),
     ];
 
     vm.execute(program);
