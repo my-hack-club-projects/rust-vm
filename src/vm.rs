@@ -1,8 +1,16 @@
 use std::collections::HashMap;
 
+#[derive(Clone, Debug)]
+pub struct Function {
+    params: Vec<String>,
+    instructions: Vec<crate::instruction::Instruction>,
+    captured_scope: Scope,
+}
+
+#[derive(Clone, Debug)]
 pub struct Scope {
     variables: HashMap<String, usize>,
-    functions: HashMap<String, (Vec<String>, Vec<crate::instruction::Instruction>)>,
+    functions: HashMap<String, Function>,
 }
 
 impl Default for Scope {
@@ -103,18 +111,34 @@ impl VM {
     }
 
     pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<crate::instruction::Instruction>) {
+        let joined_scopes = self.scopes.iter().rev().cloned().fold(Scope::default(), |mut acc, scope| {
+            for (key, value) in scope.variables {
+                acc.variables.insert(key, value);
+            }
+            for (key, value) in scope.functions {
+                acc.functions.insert(key, value);
+            }
+            acc
+        });
+        
         if let Some(current_scope) = self.scopes.last_mut() {
-            current_scope.functions.insert(name, (params, instructions));
+            let function = Function {
+                params: params.clone(),
+                instructions: instructions.clone(),
+                captured_scope: joined_scopes,
+            };
+
+            current_scope.functions.insert(name, function);
         }
     }
 
     pub fn call_function(&mut self, name: &str, args: Vec<String>) {
         // Find the function definition immutably
-        let (params, instructions) = {
+        let (params, instructions, captured_scope) = {
             let mut found = None;
             for scope in self.scopes.iter().rev() {
-                if let Some(&(ref params, ref instructions)) = scope.functions.get(name) {
-                    found = Some((params.clone(), instructions.clone()));
+                if let Some(function) = scope.functions.get(name) {
+                    found = Some((function.params.clone(), function.instructions.clone(), function.captured_scope.clone()));
                     break;
                 }
             }
@@ -132,28 +156,26 @@ impl VM {
             return;
         }
     
-        // 'args' is a list of variable names, we need to get their values
-        // Get the addresses of the variables and save them to be restored later
         let addresses: Vec<usize> = args.iter().map(|arg| self.get_variable_address(arg).unwrap()).collect();
     
         // Mutable operations
-        self.push_scope();
+        let old_scopes = self.scopes.clone();
+        let return_address = self.pc;
+
+        self.scopes = vec![captured_scope];
+        self.pc = 0;
     
         // Create the parameter variables that point to the addresses of the arguments
         for (param, &address) in params.iter().zip(addresses.iter()) {
-            println!("Declaring variable {} at address {}", param, address);
-            self.declare_variable_from_memory(param.clone(), address); // This also assigns them the values of the arguments
+            self.declare_variable_from_memory(param.clone(), address);
         }
     
         // Execute the function
-        let return_address = self.pc;
-        self.pc = 0;
-        let return_values = self.execute(instructions); // How do we handle the return values? 
+        let return_values = self.execute(instructions);
 
         // Restore the previous state
         self.pc = return_address;
-    
-        self.pop_scope();
+        self.scopes = old_scopes;
 
         // Set the return values to the registers
         for (i, value) in return_values.iter().enumerate() {

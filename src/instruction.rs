@@ -1,5 +1,5 @@
 // src/instruction.rs
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub enum Instruction {
     Add(usize, usize),
