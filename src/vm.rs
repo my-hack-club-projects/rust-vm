@@ -1,32 +1,10 @@
-use std::collections::HashMap;
-
-#[derive(Clone, Debug)]
-pub struct Function {
-    params: Vec<String>,
-    instructions: Vec<crate::instruction::Instruction>,
-    captured_scope: Scope,
-}
-
-#[derive(Clone, Debug)]
-pub struct Scope {
-    variables: HashMap<String, usize>,
-    functions: HashMap<String, Function>,
-}
-
-impl Default for Scope {
-    fn default() -> Self {
-        Scope {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-        }
-    }
-}
+use crate::symbol::{Scope, Symbol, DataType};
 
 pub struct VM {
     pub pc: usize,
     pub running: bool,
 
-    pub memory: Vec<i32>,
+    pub memory: Vec<DataType>,
     pub registers: [i32; 8],
     pub scopes: Vec<Scope>,
 }
@@ -36,7 +14,7 @@ impl VM {
         VM {
             pc: 0,
             running: true,
-            memory: vec![0; 1024],
+            memory: vec![DataType::Number(0); 1024],
             registers: [0; 8],
             scopes: vec![Scope::default()],
         }
@@ -64,96 +42,100 @@ impl VM {
         self.scopes.pop();
     }
 
+    fn get_free_address(&self) -> usize {
+        self.memory.iter().position(|data| *data == DataType::Number(0)).unwrap()
+    }
+
     pub fn declare_variable(&mut self, name: String, value: i32) {
-        if let Some(current_scope) = self.scopes.last_mut() {
-            let address = self.memory.iter().position(|&x| x == 0).unwrap_or(0);
-            self.memory[address] = value; // Assign the value to memory
-            current_scope.variables.insert(name, address); // Store the variable name and its address
-        }
+        let address = self.get_free_address();
+        self.memory[address] = DataType::Number(value);
+
+        self.declare_variable_from_memory(name, address)
     }
 
     pub fn declare_variable_from_memory(&mut self, name: String, address: usize) {
         if let Some(current_scope) = self.scopes.last_mut() {
-            current_scope.variables.insert(name, address);
+            let symbol = Symbol {
+                name: name.clone(),
+                address,
+            };
+            
+            current_scope.symbols.insert(name, symbol);
         }
     }
 
-    pub fn get_variable(&self, name: &str) -> Option<i32> {
+    fn get_variable_base(&self, name: &str) -> Option<&Symbol> {
         for scope in self.scopes.iter().rev() {
-            if let Some(&address) = scope.variables.get(name) {
-                return Some(self.memory[address]);
+            if let Some(symbol) = scope.symbols.get(name) {
+                return Some(symbol);
             }
         }
 
-        eprintln!("Error: Variable '{}' not found.", name);
+        panic!("Error: Variable '{}' not found.", name);
         None
+    }
+
+    pub fn get_variable(&self, name: &str) -> Option<DataType> {
+        if let Some(symbol) = self.get_variable_base(name) {
+            Some(self.memory[symbol.address].clone())
+        } else {
+            None
+        }
     }
 
     pub fn get_variable_address(&self, name: &str) -> Option<usize> {
-        for scope in self.scopes.iter().rev() {
-            if let Some(&address) = scope.variables.get(name) {
-                return Some(address);
-            }
+        if let Some(symbol) = self.get_variable_base(name) {
+            Some(symbol.address)
+        } else {
+            None
         }
-
-        eprintln!("Error: Variable '{}' not found.", name);
-        None
     }
 
     pub fn set_variable(&mut self, name: &str, value: i32) {
         for scope in self.scopes.iter_mut().rev() {
-            if let Some(&address) = scope.variables.get(name) {
-                self.memory[address] = value;
+            if let Some(symbol) = scope.symbols.get(name) {
+                self.memory[symbol.address] = DataType::Number(value);
                 return;
             }
         }
-        eprintln!("Error: Variable '{}' not found.", name);
+        panic!("Error: Variable '{}' not found.", name);
     }
 
     pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<crate::instruction::Instruction>) {
+        let function_address = self.get_free_address();
+        let function = Symbol {
+            name: name.clone(),
+            address: function_address,
+        };
         let joined_scopes = self.scopes.iter().rev().cloned().fold(Scope::default(), |mut acc, scope| {
-            for (key, value) in scope.variables {
-                acc.variables.insert(key, value);
+            for (name, symbol) in scope.symbols.iter() {
+                acc.symbols.insert(name.clone(), symbol.clone());
             }
-            for (key, value) in scope.functions {
-                acc.functions.insert(key, value);
-            }
+            acc.symbols.insert(name.clone(), function.clone()); // Add the function that's being declared
             acc
         });
-        
-        if let Some(current_scope) = self.scopes.last_mut() {
-            let function = Function {
-                params: params.clone(),
-                instructions: instructions.clone(),
-                captured_scope: joined_scopes,
-            };
 
-            current_scope.functions.insert(name, function);
+        if let Some(current_scope) = self.scopes.last_mut() {
+            self.memory[function_address] = DataType::Function(params.clone(), instructions.clone(), joined_scopes);
+            
+            current_scope.symbols.insert(name, function);
         }
     }
 
     pub fn call_function(&mut self, name: &str, args: Vec<String>) {
-        // Find the function definition immutably
+        // Find the function definition immutably (use self.get_variable)
         let (params, instructions, captured_scope) = {
-            let mut found = None;
-            for scope in self.scopes.iter().rev() {
-                if let Some(function) = scope.functions.get(name) {
-                    found = Some((function.params.clone(), function.instructions.clone(), function.captured_scope.clone()));
-                    break;
-                }
-            }
-            if let Some(found) = found {
-                found
+            let function = self.get_variable(name).unwrap();
+            if let DataType::Function(params, instructions, captured_scope) = function {
+                (params, instructions, captured_scope)
             } else {
-                eprintln!("Error: Function '{}' not found.", name);
-                return;
+                panic!("Error: '{}' is not a function.", name);
             }
         };
     
         // Check the number of arguments
         if args.len() != params.len() {
-            eprintln!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args.len());
-            return;
+            panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args.len());
         }
     
         let addresses: Vec<usize> = args.iter().map(|arg| self.get_variable_address(arg).unwrap()).collect();

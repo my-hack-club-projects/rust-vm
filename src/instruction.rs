@@ -1,5 +1,6 @@
-// src/instruction.rs
-#[derive(Clone, Debug)]
+use crate::symbol::DataType;
+
+#[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum Instruction {
     Add(usize, usize),
@@ -91,7 +92,11 @@ impl Instruction {
                 None
             },
             Instruction::LoadVar(target_register, var_name) => {
-                vm.registers[*target_register] = vm.get_variable(var_name).unwrap_or(0);
+                if let Some(DataType::Number(value)) = vm.get_variable(var_name) {
+                    vm.registers[*target_register] = value;
+                } else {
+                    panic!("Variable {} is not a number", var_name);
+                }
                 None
             },
             Instruction::StoreVar(source_register, var_name) => {

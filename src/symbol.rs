@@ -4,20 +4,20 @@ use crate::instruction::Instruction;
 // This programming language is supposed to be number-only. There are no datatypes like strings or booleans.
 // Only numbers and functions.
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
-    Number,
-    Function(Vec<String>, Vec<Instruction>),
+    Number(i32),
+    Function(Vec<String>, Vec<Instruction>, Scope),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
+#[allow(dead_code)]
 pub struct Symbol {
     pub name: String,
     pub address: usize,
-    pub data_type: DataType,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Scope {
     pub symbols: HashMap<String, Symbol>,
 }
