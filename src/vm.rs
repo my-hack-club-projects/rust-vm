@@ -72,7 +72,6 @@ impl VM {
         }
 
         panic!("Error: Variable '{}' not found.", name);
-        None
     }
 
     pub fn get_variable(&self, name: &str) -> Option<DataType> {
