@@ -1,20 +1,44 @@
 // src/instruction.rs
 #[allow(dead_code)]
 pub enum Instruction {
-    Add(usize, usize),       
-    Sub(usize, usize),       
-    Mul(usize, usize),       
-    Div(usize, usize),       
-    Load(usize, usize),      
-    Store(usize, usize),     
-    Mov(usize, usize),       
-    Jmp(usize),              
-    Jz(usize, usize),        
-    Jnz(usize, usize),       
-    Cmp(usize, usize),       
-    Halt,                    
-    Nop,                     
-    Out(usize),              
+    // Existing instructions...
+    Add(usize, usize),
+    Sub(usize, usize),
+    Mul(usize, usize),
+    Div(usize, usize),
+    Load(usize, usize),
+    Store(usize, usize),
+    Mov(usize, usize),
+    Jmp(usize),
+    Jz(usize, usize),
+    Jnz(usize, usize),
+    Cmp(usize, usize),
+    Halt,
+    Nop,
+    Out(usize),
+
+    // New bitwise operations
+    And(usize, usize),  // AND R1, R2
+    Or(usize, usize),   // OR R1, R2
+    Xor(usize, usize),  // XOR R1, R2
+    Not(usize),         // NOT R1
+    Shl(usize, usize),  // SHL R1, R2 (R1 << R2)
+    Shr(usize, usize),  // SHR R1, R2 (R1 >> R2)
+
+    // Stack operations
+    Push(usize),        // PUSH R1
+    Pop(usize),         // POP R1
+
+    // Extended comparison and conditional jumps
+    Jg(usize, usize),   // JG R1, LABEL
+    Jl(usize, usize),   // JL R1, LABEL
+    Je(usize, usize),   // JE R1, LABEL
+    Jne(usize, usize),  // JNE R1, LABEL
+
+    // Variable instructions
+    DeclareVar(String, i32), // DECLAREVAR "var_name", value
+    LoadVar(String),    // LOADVAR "var_name"
+    StoreVar(String),   // STOREVAR "var_name"
 }
 
 impl Instruction {
@@ -34,6 +58,58 @@ impl Instruction {
             Instruction::Out(r) => println!("OUT: {}", vm.registers[*r]),
             Instruction::Nop => { /* No operation */ },
             Instruction::Halt => vm.running = false,
+
+            Instruction::And(r1, r2) => vm.registers[*r1] &= vm.registers[*r2],
+            Instruction::Or(r1, r2) => vm.registers[*r1] |= vm.registers[*r2],
+            Instruction::Xor(r1, r2) => vm.registers[*r1] ^= vm.registers[*r2],
+            Instruction::Not(r) => vm.registers[*r] = !vm.registers[*r],
+            Instruction::Shl(r1, r2) => vm.registers[*r1] <<= vm.registers[*r2],
+            Instruction::Shr(r1, r2) => vm.registers[*r1] >>= vm.registers[*r2],
+
+            Instruction::Push(r) => {
+                vm.memory[vm.sp] = vm.registers[*r];
+                vm.sp -= 1;
+            }
+            Instruction::Pop(r) => {
+                vm.sp += 1;
+                vm.registers[*r] = vm.memory[vm.sp];
+            }
+
+            Instruction::Jg(r, addr) => if vm.registers[*r] > 0 { vm.pc = *addr },
+            Instruction::Jl(r, addr) => if vm.registers[*r] < 0 { vm.pc = *addr },
+            Instruction::Je(r, addr) => if vm.registers[*r] == 0 { vm.pc = *addr },
+            Instruction::Jne(r, addr) => if vm.registers[*r] != 0 { vm.pc = *addr },
+
+            Instruction::DeclareVar(var_name, value) => {
+                vm.declare_variable(var_name.clone(), *value);
+            },
+            Instruction::LoadVar(var_name) => {
+                if let Some(value) = vm.get_variable(var_name) {
+                    // Find an empty register
+                    let mut empty_register = None;
+                    for i in 0..vm.registers.len() {
+                        if vm.registers[i] == 0 {
+                            empty_register = Some(i);
+                            break;
+                        }
+                    }
+
+                    if let Some(register) = empty_register {
+                        vm.registers[register] = value;
+                    } else {
+                        eprintln!("Error: No empty registers available to load variable into.");
+                    }
+                } else {
+                    eprintln!("Error: Variable '{}' not found.", var_name);
+                }
+            },
+            Instruction::StoreVar(var_name) => {
+                if let Some(_) = vm.variables.get(var_name) {
+                    vm.set_variable(var_name, vm.registers[0]); // Store R0 into variable
+                } else {
+                    eprintln!("Error: Variable '{}' not found.", var_name);
+                }
+            },
         }
     }
 }
