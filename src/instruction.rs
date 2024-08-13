@@ -48,7 +48,7 @@ pub enum Instruction {
 
     DeclareFunc(String, usize, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
     CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args]
-    RetFunc(usize), // RETFUNC
+    RetFunc(Vec<usize>), // RETFUNC
 }
 
 impl Instruction {
@@ -118,35 +118,41 @@ impl Instruction {
                 }
             },
 
-            Instruction::DeclareFunc(func_name, num_args, instructions) => {
-                vm.functions.insert(func_name.clone(), (*num_args, instructions.clone()));
+            Instruction::DeclareFunc(func_name, num_params, instructions) => {
+                vm.functions.insert(func_name.clone(), (*num_params, instructions.clone()));
             },
             Instruction::CallFunc(func_name, args) => {
-                if let Some((num_args, instructions)) = vm.functions.get(func_name) {
-                    if args.len() != *num_args {
-                        eprintln!("Error: Expected {} arguments, got {}.", num_args, args.len());
+                if let Some((num_params, instructions)) = vm.functions.get(func_name) {
+                    if args.len() != *num_params {
+                        eprintln!("Error: Function '{}' expects {} arguments, but {} were provided.", func_name, num_params, args.len());
                         return;
                     }
-                    let mut i = 0;
-                    for arg in args {
-                        vm.registers[i] = *arg as i32;
-                        i += 1;
+
+                    let old_pc = vm.pc;
+                    let old_sp = vm.sp;
+
+                    for (i, arg) in args.iter().enumerate() {
+                        vm.registers[i] = vm.registers[*arg];
                     }
-                    let return_address = vm.pc;
+
                     vm.pc = 0;
+                    vm.sp -= args.len(); // Reserve space for the arguments
                     vm.execute(instructions.clone());
-                    vm.pc = return_address;
+
+                    vm.pc = old_pc;
+                    vm.sp = old_sp;
                 } else {
                     eprintln!("Error: Function '{}' not found.", func_name);
                 }
             },
-            Instruction::RetFunc(r) => {
-                // r is the register that holds the return value
-                // we need to move the return value to the register that called the function
-                vm.registers[0] = vm.registers[*r];
-
-                // Set the program counter to the next instruction after the CALLFUNC instruction
-                vm.pc += 1;
+            Instruction::RetFunc(register_indices) => {
+                let return_values: Vec<usize> = register_indices.iter().map(|&i| vm.registers[i] as usize).collect();
+                
+                for (i, value) in return_values.iter().enumerate() {
+                    vm.registers[i] = *value as i32;
+                }
+                
+                vm.pc = usize::MAX; // Stop the VM
             },
         }
     }
