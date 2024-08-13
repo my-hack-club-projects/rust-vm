@@ -5,17 +5,26 @@ fn main() {
     let mut vm = vm::VM::new();
 
     let program = vec![
-        instruction::Instruction::DeclareVar("a".to_string(), 10),
+        instruction::Instruction::DeclareVar("a".to_string(), 1),
         instruction::Instruction::DeclareVar("b".to_string(), 4),
+        instruction::Instruction::DeclareVar("c".to_string(), 3),
         instruction::Instruction::DeclareVar("result".to_string(), 0),
 
-        instruction::Instruction::LoadVar("a".to_string()),
-        instruction::Instruction::LoadVar("b".to_string()),
+        instruction::Instruction::LoadVar(0, "a".to_string()),
+        instruction::Instruction::LoadVar(1, "b".to_string()),
         instruction::Instruction::Add(0, 1),
-        instruction::Instruction::StoreVar("result".to_string()),
+        instruction::Instruction::StoreVar(0, "result".to_string()),
+
+        instruction::Instruction::LoadVar(0, "result".to_string()),
+        instruction::Instruction::LoadVar(1, "c".to_string()),
+        instruction::Instruction::Mul(0, 1),
+        instruction::Instruction::StoreVar(0, "result".to_string()),
 
         instruction::Instruction::Out(0),
+
         instruction::Instruction::Halt,
+
+        // This program calculates the result of (a + b) * c, which is (10 + 4) * 6 = 84
     ];
 
     vm.execute(program);

@@ -37,8 +37,8 @@ pub enum Instruction {
 
     // Variable instructions
     DeclareVar(String, i32), // DECLAREVAR "var_name", value
-    LoadVar(String),    // LOADVAR "var_name"
-    StoreVar(String),   // STOREVAR "var_name"
+    LoadVar(usize, String),    // LOADVAR "var_name"
+    StoreVar(usize, String),   // STOREVAR "var_name"
 }
 
 impl Instruction {
@@ -83,29 +83,16 @@ impl Instruction {
             Instruction::DeclareVar(var_name, value) => {
                 vm.declare_variable(var_name.clone(), *value);
             },
-            Instruction::LoadVar(var_name) => {
+            Instruction::LoadVar(target_register, var_name) => {
                 if let Some(value) = vm.get_variable(var_name) {
-                    // Find an empty register
-                    let mut empty_register = None;
-                    for i in 0..vm.registers.len() {
-                        if vm.registers[i] == 0 {
-                            empty_register = Some(i);
-                            break;
-                        }
-                    }
-
-                    if let Some(register) = empty_register {
-                        vm.registers[register] = value;
-                    } else {
-                        eprintln!("Error: No empty registers available to load variable into.");
-                    }
+                    vm.registers[*target_register] = value; // Load variable into specified register
                 } else {
                     eprintln!("Error: Variable '{}' not found.", var_name);
                 }
             },
-            Instruction::StoreVar(var_name) => {
+            Instruction::StoreVar(source_register, var_name) => {
                 if let Some(_) = vm.variables.get(var_name) {
-                    vm.set_variable(var_name, vm.registers[0]); // Store R0 into variable
+                    vm.set_variable(var_name, vm.registers[*source_register]); // Store specified register into variable
                 } else {
                     eprintln!("Error: Variable '{}' not found.", var_name);
                 }
