@@ -4,6 +4,7 @@ pub struct VM {
     pub registers: [i32; 8],  // Public to allow Instruction to access it
     pub memory: [i32; 256],
     pub variables: HashMap<String, usize>,
+    pub functions: HashMap<String, (usize, Vec<crate::instruction::Instruction>)>,
     pub pc: usize,
     pub sp: usize,            // Stack pointer
     pub running: bool,
@@ -15,6 +16,7 @@ impl VM {
             registers: [0; 8],
             memory: [0; 256],
             variables: HashMap::new(),
+            functions: HashMap::new(),
             pc: 0,
             sp: 255,          // Initialize stack pointer at the end of memory
             running: true,

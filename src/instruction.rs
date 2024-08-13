@@ -1,5 +1,6 @@
 // src/instruction.rs
 #[allow(dead_code)]
+#[derive(Clone)]
 pub enum Instruction {
     Add(usize, usize),
     Sub(usize, usize),
@@ -44,6 +45,10 @@ pub enum Instruction {
     DeclareVar(String, i32), // DECLAREVAR "var_name", value
     LoadVar(usize, String),    // LOADVAR "var_name"
     StoreVar(usize, String),   // STOREVAR "var_name"
+
+    DeclareFunc(String, usize, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
+    CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args]
+    RetFunc(usize), // RETFUNC
 }
 
 impl Instruction {
@@ -111,6 +116,37 @@ impl Instruction {
                 } else {
                     eprintln!("Error: Variable '{}' not found.", var_name);
                 }
+            },
+
+            Instruction::DeclareFunc(func_name, num_args, instructions) => {
+                vm.functions.insert(func_name.clone(), (*num_args, instructions.clone()));
+            },
+            Instruction::CallFunc(func_name, args) => {
+                if let Some((num_args, instructions)) = vm.functions.get(func_name) {
+                    if args.len() != *num_args {
+                        eprintln!("Error: Expected {} arguments, got {}.", num_args, args.len());
+                        return;
+                    }
+                    let mut i = 0;
+                    for arg in args {
+                        vm.registers[i] = *arg as i32;
+                        i += 1;
+                    }
+                    let return_address = vm.pc;
+                    vm.pc = 0;
+                    vm.execute(instructions.clone());
+                    vm.pc = return_address;
+                } else {
+                    eprintln!("Error: Function '{}' not found.", func_name);
+                }
+            },
+            Instruction::RetFunc(r) => {
+                // r is the register that holds the return value
+                // we need to move the return value to the register that called the function
+                vm.registers[0] = vm.registers[*r];
+
+                // Set the program counter to the next instruction after the CALLFUNC instruction
+                vm.pc += 1;
             },
         }
     }
