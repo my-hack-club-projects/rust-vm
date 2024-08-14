@@ -13,7 +13,7 @@ fn main() {
         Instruction::LoadLiteral(0, 1),
         Instruction::If(0, vec![
             Instruction::LoadLiteral(1, 123),
-            Instruction::Out(1),
+            Instruction::Debug(1),
 
             Instruction::LoadLiteral(0, 0),
             Instruction::LoadLiteral(1, 1),

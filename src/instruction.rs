@@ -5,6 +5,7 @@ use crate::symbol::DataType;
 pub enum Instruction {
     Halt,
     Out(usize),
+    Debug(usize),
 
     Add(usize, usize),
     Sub(usize, usize),
@@ -70,7 +71,15 @@ impl Instruction {
         match self {
             Instruction::Halt => { vm.running = false; None },
             Instruction::Out(r) => {
-                println!("{}, address: {}", vm.get_register_value(*r), vm.get_register_address(*r)); None
+                let value = vm.get_register_value(*r);
+                println!("{}", value);
+                None
+            },
+            Instruction::Debug(r) => {
+                let value = vm.get_register_value(*r);
+                let address = vm.get_register_address(*r);
+                println!("{:?} at mem[{}]", value, address);
+                None
             },
 
             Instruction::Add(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a + b)); None },
