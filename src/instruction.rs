@@ -41,6 +41,7 @@ pub enum Instruction {
     LoadLiteral(usize, i32), // LOADLITERAL R1, value
 
     DeclareVar(usize, String), // DECLAREVAR "var_name", value
+    DeclareMutVar(usize, String), // DECLAREMUTVAR "var_name", value
     LoadVar(usize, String),    // LOADVAR "var_name"
     StoreVar(usize, String),   // STOREVAR "var_name"
 
@@ -91,7 +92,11 @@ impl Instruction {
             Instruction::LoadLiteral(r, value) => { vm.registers[*r] = *value; None },
 
             Instruction::DeclareVar(source_register, var_name) => {
-                vm.declare_variable(var_name.clone(), vm.registers[*source_register]);
+                vm.declare_variable(var_name.clone(), vm.registers[*source_register], false);
+                None
+            },
+            Instruction::DeclareMutVar(source_register, var_name) => {
+                vm.declare_variable(var_name.clone(), vm.registers[*source_register], true);
                 None
             },
             Instruction::LoadVar(target_register, var_name) => {

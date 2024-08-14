@@ -16,7 +16,7 @@ impl VM {
             running: true,
             memory: vec![DataType::Number(0); 1024],
             registers: [0; 8],
-            scopes: vec![Scope::default()],
+            scopes: vec![Scope::new(None)], // The first scope has no parent, but how do we represent that? None does not work. 
         }
     }
 
@@ -35,7 +35,7 @@ impl VM {
     }
 
     pub fn push_scope(&mut self) {
-        self.scopes.push(Scope::default());
+        self.scopes.push(Scope::new(Some(self.scopes.last().unwrap().clone())));
     }
 
     pub fn pop_scope(&mut self) {
@@ -46,18 +46,24 @@ impl VM {
         self.memory.iter().position(|data| *data == DataType::Number(0)).unwrap()
     }
 
-    pub fn declare_variable(&mut self, name: String, value: i32) {
+    pub fn declare_variable(&mut self, name: String, value: i32, mutable: bool) {
         let address = self.get_free_address();
         self.memory[address] = DataType::Number(value);
 
-        self.declare_variable_from_memory(name, address)
+        self.declare_variable_from_memory(name, address, mutable);
     }
 
-    pub fn declare_variable_from_memory(&mut self, name: String, address: usize) {
+    pub fn declare_variable_from_memory(&mut self, name: String, address: usize, mutable: bool) {
         if let Some(current_scope) = self.scopes.last_mut() {
+            // Check if the variable is already declared
+            if current_scope.get_all_symbols().contains_key(&name) {
+                panic!("Error: Variable '{}' already declared in this scope.", name);
+            }
+            
             let symbol = Symbol {
                 name: name.clone(),
                 address,
+                mutable,
             };
             
             current_scope.symbols.insert(name, symbol);
@@ -93,6 +99,10 @@ impl VM {
     pub fn set_variable(&mut self, name: &str, value: i32) {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(symbol) = scope.symbols.get(name) {
+                if !symbol.mutable {
+                    panic!("Error: Variable '{}' is not mutable.", name);
+                }
+
                 self.memory[symbol.address] = DataType::Number(value);
                 return;
             }
@@ -105,8 +115,9 @@ impl VM {
         let function = Symbol {
             name: name.clone(),
             address: function_address,
+            mutable: false,
         };
-        let joined_scopes = self.scopes.iter().rev().cloned().fold(Scope::default(), |mut acc, scope| {
+        let joined_scopes = self.scopes.iter().rev().cloned().fold(Scope::new(None), |mut acc, scope| {
             for (name, symbol) in scope.symbols.iter() {
                 acc.symbols.insert(name.clone(), symbol.clone());
             }
@@ -149,7 +160,7 @@ impl VM {
     
         // Declare the parameter variables with the values
         for (param, &value) in params.iter().zip(values.iter()) {
-            self.declare_variable(param.clone(), value);
+            self.declare_variable(param.clone(), value, false);
         }
     
         // Execute the function
