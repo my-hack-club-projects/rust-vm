@@ -184,10 +184,7 @@ impl VM {
             panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args_indices.len());
         }
     
-        // Get the values from the registers at the argument indices (OLD)
-        // let values = args_indices.iter().map(|&i| self.registers[i as usize]).collect::<Vec<i32>>();
-    
-        // New: get the addresses that the registers point to, so we can later set the function parameters to point to the same addresses
+        // Get the addresses of the arguments
         let addresses = args_indices.iter().map(|&i| self.registers.as_ref().unwrap()[i].address).collect::<Vec<usize>>();
 
         // Mutable operations
