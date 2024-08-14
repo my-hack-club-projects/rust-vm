@@ -51,7 +51,7 @@ impl VM {
         while self.running && self.pc < program.len() {
             let instruction = &program[self.pc];
             self.pc += 1;
-            let result = instruction.execute(self);
+            let result = instruction.execute(self, program.clone());
 
             if let Some(result) = result {
                 output = result;

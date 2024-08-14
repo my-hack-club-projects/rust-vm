@@ -40,6 +40,9 @@ pub enum Instruction {
     If(usize, Vec<Instruction>), // IF R1, [instructions]
     ElseIf(usize, Vec<Instruction>), // ELSEIF R1, [instructions]
     Else(Vec<Instruction>), // ELSE [instructions]
+
+    While(usize, Vec<Instruction>), // WHILE R1, [instructions]
+    BreakWhile,
 }
 
 impl Instruction {
@@ -67,7 +70,7 @@ impl Instruction {
         truthy
     }
 
-    pub fn execute(&self, vm: &mut crate::vm::VM) -> Option<Vec<i32>> {
+    pub fn execute(&self, vm: &mut crate::vm::VM, program: Vec<Instruction>) -> Option<Vec<i32>> {
         match self {
             Instruction::Halt => { vm.running = false; None },
             Instruction::Out(r) => {
@@ -140,6 +143,7 @@ impl Instruction {
             },
 
             Instruction::RetFunc(register_indices) => {
+                // TODO: Set vm.running to false right before returning
                 let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address as i32).collect::<Vec<i32>>();
                 Some(return_addresses)
             },
@@ -186,6 +190,30 @@ impl Instruction {
 
                     vm.pc = old_pc;
                 }
+                None
+            },
+
+            Instruction::While(condition_reg, instructions) => {
+                // TODO: Do not use a register, as it could be modified in the loop.
+                // Use a Vec of instructions, the last of which is a return statement.
+                // Then check if the result of that program is truthy.
+                
+                while self.truthy_check(vm, *condition_reg) {
+                    let old_pc = vm.pc;
+
+                    vm.pc = 0;
+                    vm.push_scope();
+                    vm.execute(instructions.clone());
+                    vm.pop_scope();
+
+                    vm.pc = old_pc;
+                }
+                None
+            },
+            Instruction::BreakWhile => {
+                // Set the program counter to the end of the while loop.
+                // Since the loop executes the instructions as a separate program, the program counter will be set to the end of the loop.
+                vm.pc = program.len();
                 None
             },
         }
