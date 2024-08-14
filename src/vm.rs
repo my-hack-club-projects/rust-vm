@@ -27,7 +27,8 @@ pub struct VM {
 
 impl VM {
     pub fn new() -> Self {
-        let vm_memory = vec![DataType::Number(0); 1024];
+        let vm_memory = vec![DataType::Number(0); 1024]; // TODO: use null instead of the number 0
+
         let mut vm = VM {
             pc: 0,
             running: true,
