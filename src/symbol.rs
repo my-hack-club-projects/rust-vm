@@ -1,13 +1,53 @@
 use std::collections::HashMap;
 use crate::instruction::Instruction;
+use std::fmt;
 
 // This programming language is supposed to be number-only. There are no datatypes like strings or booleans.
 // Only numbers and functions.
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Register {
+    pub address: usize,
+}
+
+impl Register {
+    pub fn new(address: usize) -> Register {
+        Register {
+            address,
+        }
+    }
+
+    pub fn get_value(&self, memory: &Vec<DataType>) -> Option<DataType> {
+        if self.address < memory.len() {
+            Some(memory[self.address].clone())
+        } else {
+            panic!("Error: Register address out of bounds.");
+        }
+    }
+
+    pub fn set_value(&self, memory: &mut Vec<DataType>, value: DataType) {
+        if self.address < memory.len() {
+            memory[self.address] = value;
+        } else {
+            panic!("Error: Register address out of bounds.");
+        }
+    }
+    
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataType {
     Number(i32),
     Function(Vec<String>, Vec<Instruction>, Scope),
+}
+
+impl fmt::Display for DataType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            DataType::Number(n) => write!(f, "{}", n),
+            DataType::Function(_, _, _) => write!(f, "Function"),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

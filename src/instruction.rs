@@ -3,6 +3,9 @@ use crate::symbol::DataType;
 #[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)]
 pub enum Instruction {
+    Halt,
+    Out(usize),
+
     Add(usize, usize),
     Sub(usize, usize),
     Mul(usize, usize),
@@ -21,22 +24,6 @@ pub enum Instruction {
     Or(usize, usize),   // OR R1, R2
     Xor(usize, usize),  // XOR R1, R2
     Not(usize),         // NOT R1
-    Shl(usize, usize),  // SHL R1, R2 (R1 << R2)
-    Shr(usize, usize),  // SHR R1, R2 (R1 >> R2)
-
-    Mov(usize, usize),
-    Jmp(usize),
-    Jz(usize, usize),
-    Jnz(usize, usize),
-    Cmp(usize, usize),
-    Halt,
-    Nop,
-    Out(usize),
-
-    Jg(usize, usize),   // JG R1, LABEL
-    Jl(usize, usize),   // JL R1, LABEL
-    Je(usize, usize),   // JE R1, LABEL
-    Jne(usize, usize),  // JNE R1, LABEL
 
     LoadLiteral(usize, i32), // LOADLITERAL R1, value
 
@@ -51,64 +38,69 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    // execute() is a method that takes a mutable reference to a VM instance and returns nothing or an i32
+    fn register_operation(&self, vm: &mut crate::vm::VM, r1_index: usize, r2_index: usize, fnc: Box<dyn Fn(i32, i32) -> i32>) {
+        let registers = vm.registers.as_mut().unwrap();
+        let (r1_slice, r2_slice) = registers.split_at_mut(r1_index.max(r2_index) + 1);
+        let r1 = &mut r1_slice[r1_index.min(r2_index)];
+        let r2 = &mut r2_slice[r2_index.max(r1_index) - r1_index.min(r2_index)];
+        let v1 = r1.get_value(&vm.memory);
+        let v2 = r2.get_value(&vm.memory);
+        if let (Some(DataType::Number(v1)), Some(DataType::Number(v2))) = (v1, v2) {
+            r1.set_value(&mut vm.memory, DataType::Number(fnc(v1, v2)));
+        } else {
+            panic!("Error: Cannot perform arithmetic on non-numeric values.");
+        }
+    }
+
     pub fn execute(&self, vm: &mut crate::vm::VM) -> Option<Vec<i32>> {
         match self {
-            Instruction::Add(r1, r2) => { vm.registers[*r1] += vm.registers[*r2]; None } ,
-            Instruction::Sub(r1, r2) => { vm.registers[*r1] -= vm.registers[*r2]; None },
-            Instruction::Mul(r1, r2) => { vm.registers[*r1] *= vm.registers[*r2]; None },
-            Instruction::Div(r1, r2) => { vm.registers[*r1] /= vm.registers[*r2]; None },
-            Instruction::Mod(r1, r2) => { vm.registers[*r1] %= vm.registers[*r2]; None },
-            Instruction::Exp(r1, r2) => { vm.registers[*r1] = vm.registers[*r1].pow(vm.registers[*r2] as u32); None },
-
-            Instruction::Gt(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] > vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Lt(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] < vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Gte(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] >= vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Lte(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] <= vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Eq(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] == vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Ne(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 }; None },
-
-            Instruction::And(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != 0 && vm.registers[*r2] != 0 { 1 } else { 0 }; None },
-            Instruction::Or(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != 0 || vm.registers[*r2] != 0 { 1 } else { 0 }; None },
-            Instruction::Xor(r1, r2) => { vm.registers[*r1] = if vm.registers[*r1] != vm.registers[*r2] { 1 } else { 0 }; None },
-            Instruction::Not(r) => { vm.registers[*r] = if vm.registers[*r] == 0 { 1 } else { 0 }; None },
-            Instruction::Shl(r1, r2) => { vm.registers[*r1] <<= vm.registers[*r2]; None },
-
-            Instruction::Shr(r1, r2) => { vm.registers[*r1] >>= vm.registers[*r2]; None },
-            Instruction::Mov(r1, r2) => { vm.registers[*r1] = vm.registers[*r2]; None },
-            Instruction::Jmp(addr) => { vm.pc = *addr; None },
-            Instruction::Jz(r, addr) => { if vm.registers[*r] == 0 { vm.pc = *addr }; None },
-            Instruction::Jnz(r, addr) => { if vm.registers[*r] != 0 { vm.pc = *addr }; None },
-            Instruction::Cmp(_r1, _r2) => { /* Placeholder for future flags */ None },
-            Instruction::Out(r) => { println!("OUT: {}", vm.registers[*r]); None },
-            Instruction::Nop => { /* No operation */ None },
             Instruction::Halt => { vm.running = false; None },
+            Instruction::Out(r) => { println!("{}", vm.get_register_value(*r)); None },
 
-            Instruction::Jg(r, addr) => { if vm.registers[*r] > 0 { vm.pc = *addr }; None },
-            Instruction::Jl(r, addr) => { if vm.registers[*r] < 0 { vm.pc = *addr }; None },
-            Instruction::Je(r, addr) => { if vm.registers[*r] == 0 { vm.pc = *addr }; None },
-            Instruction::Jne(r, addr) => { if vm.registers[*r] != 0 { vm.pc = *addr }; None },
+            Instruction::Add(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a + b)); None },
+            Instruction::Sub(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a - b)); None },
+            Instruction::Mul(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a * b)); None },
+            Instruction::Div(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a / b)); None },
+            Instruction::Mod(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a % b)); None },
+            Instruction::Exp(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a.pow(b as u32))); None },
 
-            Instruction::LoadLiteral(r, value) => { vm.registers[*r] = *value; None },
+            Instruction::Gt(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a > b { 1 } else { 0 })); None },
+            Instruction::Lt(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a < b { 1 } else { 0 })); None },
+            Instruction::Gte(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a >= b { 1 } else { 0 })); None },
+            Instruction::Lte(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a <= b { 1 } else { 0 })); None },
+            Instruction::Eq(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a == b { 1 } else { 0 })); None },
+            Instruction::Ne(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != b { 1 } else { 0 })); None },
+
+            Instruction::And(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != 0 && b != 0 { 1 } else { 0 })); None },
+            Instruction::Or(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != 0 || b != 0 { 1 } else { 0 })); None },
+            Instruction::Xor(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != b { 1 } else { 0 })); None },
+            Instruction::Not(r) => { self.register_operation(vm, *r, 0, Box::new(|a, _| if a == 0 { 1 } else { 0 })); None },
+
+            Instruction::LoadLiteral(r, value) => {
+                let address = vm.add_to_memory(DataType::Number(*value));
+                vm.registers.as_mut().unwrap()[*r].address = address;
+                None
+            },
 
             Instruction::DeclareVar(source_register, var_name) => {
-                vm.declare_variable(var_name.clone(), vm.registers[*source_register], false);
+                let value = vm.registers.as_ref().unwrap()[*source_register].get_value(&vm.memory).unwrap();
+                vm.declare_variable(var_name.clone(), value, false);
                 None
             },
             Instruction::DeclareMutVar(source_register, var_name) => {
-                vm.declare_variable(var_name.clone(), vm.registers[*source_register], true);
+                let value = vm.registers.as_ref().unwrap()[*source_register].get_value(&vm.memory).unwrap();
+                vm.declare_variable(var_name.clone(), value, true);
                 None
             },
             Instruction::LoadVar(target_register, var_name) => {
-                if let Some(DataType::Number(value)) = vm.get_variable(var_name) {
-                    vm.registers[*target_register] = value;
-                } else {
-                    panic!("Variable {} is not a number", var_name);
-                }
+                let address = vm.get_variable_address(var_name).unwrap();
+                vm.registers.as_mut().unwrap()[*target_register].address = address;
                 None
             },
             Instruction::StoreVar(source_register, var_name) => {
-                vm.set_variable(var_name, vm.registers[*source_register]);
+                // Get the address that the register points to and set the variable to point to that address.
+                let address = vm.registers.as_ref().unwrap()[*source_register].address;
+                vm.set_variable_address(var_name, address);
                 None
             },
 
@@ -123,8 +115,8 @@ impl Instruction {
             },
 
             Instruction::RetFunc(register_indices) => {
-                let return_values: Vec<i32> = register_indices.iter().map(|&i| vm.registers[i]).collect();
-                Some(return_values)
+                let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address as i32).collect::<Vec<i32>>();
+                Some(return_addresses)
             },
         }
     }
