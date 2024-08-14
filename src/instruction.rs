@@ -43,6 +43,7 @@ pub enum Instruction {
 
     While(Vec<Instruction>, Vec<Instruction>), // WHILE [condition_instructions], [instructions]
     BreakWhile,
+    ContinueWhile,
 }
 
 impl Instruction {
@@ -225,21 +226,38 @@ impl Instruction {
                     final_result.unwrap()
                 }
 
+                let old_pc = vm.pc;
                 while self.truthy_check(get_condition_result(vm, condition_instructions.to_vec())) {
-                    let old_pc = vm.pc;
 
                     vm.pc = 0;
                     vm.push_scope();
                     vm.execute(instructions.clone());
                     vm.pop_scope();
 
-                    vm.pc = old_pc;
+                    if vm.state.loop_break {
+                        vm.state.loop_break = false;
+                        break;
+                    }
+
                 }
+                vm.pc = old_pc;
+
                 None
             },
             Instruction::BreakWhile => {
-                // Set the program counter to the end of the while loop.
-                // Since the loop executes the instructions as a separate program, the program counter will be set to the end of the loop.
+                println!("BreakWhile");
+                // Set the program counter to the end of the while loop. Then, set a 'break' flag.
+                
+                vm.pc = program.len();
+                vm.state.loop_break = true;
+
+                None
+            },
+
+            Instruction::ContinueWhile => {
+                println!("ContinueWhile");
+                // Set the program counter to the end of the loop, skipping the rest of the instructions.
+                // The program will be executed again if the condition is still true.
                 vm.pc = program.len();
                 None
             },

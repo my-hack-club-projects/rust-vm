@@ -30,6 +30,12 @@ fn main() {
                 Instruction::Add(0, 1),
                 Instruction::StoreVar(0, "x".to_string()),
                 Instruction::Debug(0),
+
+                Instruction::LoadLiteral(1, 5),
+                Instruction::Lt(1, 0), // Test 'BreakWhile' by breaking the loop when x > 5
+                Instruction::If(1, vec![
+                    Instruction::BreakWhile,
+                ]),
             ],
         ),
 

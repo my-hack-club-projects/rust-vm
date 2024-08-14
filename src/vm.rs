@@ -4,12 +4,14 @@ use crate::symbol::{Register, Scope, Symbol, DataType};
 
 pub struct VMState {
     pub if_statement_met: bool,
+    pub loop_break: bool,
 }
 
 impl VMState {
     pub fn new() -> Self {
         VMState {
             if_statement_met: false,
+            loop_break: false,
         }
     }
 }
