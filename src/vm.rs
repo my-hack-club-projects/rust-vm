@@ -2,9 +2,23 @@ use core::panic;
 
 use crate::symbol::{Register, Scope, Symbol, DataType};
 
+pub struct VMState {
+    pub if_statement_met: bool,
+}
+
+impl VMState {
+    pub fn new() -> Self {
+        VMState {
+            if_statement_met: false,
+        }
+    }
+}
+
 pub struct VM {
     pub pc: usize,
     pub running: bool,
+
+    pub state: VMState,
 
     pub memory: Vec<DataType>,
     pub registers: Option<[Register; 8]>,
@@ -17,6 +31,9 @@ impl VM {
         let mut vm = VM {
             pc: 0,
             running: true,
+
+            state: VMState::new(),
+
             memory: vm_memory,
             registers: None, // Temporary placeholder
             scopes: vec![Scope::new(None)], // The first scope has no parent, but how do we represent that? None does not work.
@@ -63,6 +80,14 @@ impl VM {
     pub fn get_register_value(&self, register: usize) -> DataType {
         if let Some(registers) = &self.registers {
             registers[register].get_value(&self.memory).unwrap()
+        } else {
+            panic!("Registers not initialized.");
+        }
+    }
+
+    pub fn get_register_address(&self, register: usize) -> usize {
+        if let Some(registers) = &self.registers {
+            registers[register].address
         } else {
             panic!("Registers not initialized.");
         }

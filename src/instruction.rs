@@ -35,6 +35,10 @@ pub enum Instruction {
     DeclareFunc(String, Vec<String>, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
     CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args as register indices]
     RetFunc(Vec<usize>), // RETFUNC
+
+    If(usize, Vec<Instruction>), // IF R1, [instructions]
+    ElseIf(usize, Vec<Instruction>), // ELSEIF R1, [instructions]
+    Else(Vec<Instruction>), // ELSE [instructions]
 }
 
 impl Instruction {
@@ -52,10 +56,22 @@ impl Instruction {
         }
     }
 
+    fn truthy_check(&self, vm: &mut crate::vm::VM, r: usize) -> bool {
+        let condition = vm.get_register_value(r);
+        let truthy = match condition {
+            DataType::Number(n) => n != 0,
+            // TODO: Explicitly return false for future null datatype
+            _ => true, // This WILL break if we add null
+        };
+        truthy
+    }
+
     pub fn execute(&self, vm: &mut crate::vm::VM) -> Option<Vec<i32>> {
         match self {
             Instruction::Halt => { vm.running = false; None },
-            Instruction::Out(r) => { println!("{}", vm.get_register_value(*r)); None },
+            Instruction::Out(r) => {
+                println!("{}, address: {}", vm.get_register_value(*r), vm.get_register_address(*r)); None
+            },
 
             Instruction::Add(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a + b)); None },
             Instruction::Sub(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a - b)); None },
@@ -117,6 +133,51 @@ impl Instruction {
             Instruction::RetFunc(register_indices) => {
                 let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address as i32).collect::<Vec<i32>>();
                 Some(return_addresses)
+            },
+
+            Instruction::If(condition_reg, instructions) => {
+                if self.truthy_check(vm, *condition_reg) {
+                    println!("If statement met");
+                    let old_pc = vm.pc;
+                    
+                    vm.pc = 0;
+                    vm.push_scope();
+                    vm.execute(instructions.clone());
+                    vm.pop_scope();
+                    
+                    vm.pc = old_pc;
+                    vm.state.if_statement_met = true;
+                } else {
+                    vm.state.if_statement_met = false;
+                }
+                None
+            },
+            Instruction::ElseIf(condition_reg, instructions) => {
+                if !vm.state.if_statement_met && self.truthy_check(vm, *condition_reg) {
+                    let old_pc = vm.pc;
+                    
+                    vm.pc = 0;
+                    vm.push_scope();
+                    vm.execute(instructions.clone());
+                    vm.pop_scope();
+                    
+                    vm.pc = old_pc;
+                    vm.state.if_statement_met = true;
+                }
+                None
+            },
+            Instruction::Else(instructions) => {
+                if !vm.state.if_statement_met {
+                    let old_pc = vm.pc;
+
+                    vm.pc = 0;
+                    vm.push_scope();
+                    vm.execute(instructions.clone());
+                    vm.pop_scope();
+
+                    vm.pc = old_pc;
+                }
+                None
             },
         }
     }

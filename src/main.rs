@@ -10,19 +10,31 @@ fn main() {
     let mut vm = vm::VM::new();
 
     let program = vec![
-        Instruction::DeclareFunc("addNums".to_string(), vec!["a".to_string(), "b".to_string()], vec![
-            Instruction::LoadVar(0, "a".to_string()),
-            Instruction::LoadVar(1, "b".to_string()),
-            Instruction::Out(0),
+        Instruction::LoadLiteral(0, 1),
+        Instruction::If(0, vec![
+            Instruction::LoadLiteral(1, 123),
             Instruction::Out(1),
-            Instruction::Add(0, 1),
-            Instruction::RetFunc(vec![0]),
-        ]),
 
-        Instruction::LoadLiteral(0, 5),
-        Instruction::LoadLiteral(1, 10),
-        Instruction::CallFunc("addNums".to_string(), vec![0, 1]),
-        Instruction::Out(0),
+            Instruction::LoadLiteral(0, 0),
+            Instruction::LoadLiteral(1, 1),
+            
+            Instruction::If(0, vec![
+                Instruction::LoadLiteral(1, 456),
+                Instruction::Out(1)
+                ]),
+            Instruction::ElseIf(1, vec![
+                Instruction::LoadLiteral(1, 789),
+                Instruction::Out(1),
+            ]),
+            Instruction::Else(vec![
+                Instruction::LoadLiteral(1, 987),
+                Instruction::Out(1),
+            ]),
+        ]),
+        Instruction::Else(vec![
+            Instruction::LoadLiteral(1, 321),
+            Instruction::Out(1),
+        ]),
 
         Instruction::Halt,
     ];
