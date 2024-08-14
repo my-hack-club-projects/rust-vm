@@ -40,11 +40,11 @@ pub enum Instruction {
 impl Instruction {
     fn register_operation(&self, vm: &mut crate::vm::VM, r1_index: usize, r2_index: usize, fnc: Box<dyn Fn(i32, i32) -> i32>) {
         let registers = vm.registers.as_mut().unwrap();
-        let (r1_slice, r2_slice) = registers.split_at_mut(r1_index.max(r2_index) + 1);
-        let r1 = &mut r1_slice[r1_index.min(r2_index)];
-        let r2 = &mut r2_slice[r2_index.max(r1_index) - r1_index.min(r2_index)];
+        let r1 = &registers[r1_index];
+        let r2 = &registers[r2_index];
         let v1 = r1.get_value(&vm.memory);
         let v2 = r2.get_value(&vm.memory);
+        
         if let (Some(DataType::Number(v1)), Some(DataType::Number(v2))) = (v1, v2) {
             r1.set_value(&mut vm.memory, DataType::Number(fnc(v1, v2)));
         } else {

@@ -10,25 +10,21 @@ fn main() {
     let mut vm = vm::VM::new();
 
     let program = vec![
-        Instruction::LoadLiteral(0, 123),
-        Instruction::DeclareVar(0, "immutableVar".to_string()),
-        Instruction::LoadLiteral(1, 456),
-        Instruction::DeclareMutVar(1, "mutableVar".to_string()),
+        Instruction::DeclareFunc("addNums".to_string(), vec!["a".to_string(), "b".to_string()], vec![
+            Instruction::LoadVar(0, "a".to_string()),
+            Instruction::LoadVar(1, "b".to_string()),
+            Instruction::Out(0),
+            Instruction::Out(1),
+            Instruction::Add(0, 1),
+            Instruction::RetFunc(vec![0]),
+        ]),
 
-        Instruction::LoadVar(0, "immutableVar".to_string()),
+        Instruction::LoadLiteral(0, 5),
+        Instruction::LoadLiteral(1, 10),
+        Instruction::CallFunc("addNums".to_string(), vec![0, 1]),
         Instruction::Out(0),
 
-        Instruction::LoadVar(0, "mutableVar".to_string()),
-        Instruction::Out(0),
-
-        Instruction::LoadLiteral(1, 12),
-        Instruction::Add(0, 1),
-        Instruction::StoreVar(0, "mutableVar".to_string()),
-
-        Instruction::LoadVar(0, "immutableVar".to_string()),
-        Instruction::LoadLiteral(0, 1),
-        Instruction::Add(0, 1),
-        Instruction::StoreVar(0, "immutableVar".to_string()),
+        Instruction::Halt,
     ];
 
     vm.execute(program);
