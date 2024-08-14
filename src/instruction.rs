@@ -1,4 +1,4 @@
-use crate::symbol::DataType;
+use crate::{symbol::DataType, vm::VM};
 
 #[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)]
@@ -41,7 +41,7 @@ pub enum Instruction {
     ElseIf(usize, Vec<Instruction>), // ELSEIF R1, [instructions]
     Else(Vec<Instruction>), // ELSE [instructions]
 
-    While(usize, Vec<Instruction>), // WHILE R1, [instructions]
+    While(Vec<Instruction>, Vec<Instruction>), // WHILE [condition_instructions], [instructions]
     BreakWhile,
 }
 
@@ -60,14 +60,18 @@ impl Instruction {
         }
     }
 
-    fn truthy_check(&self, vm: &mut crate::vm::VM, r: usize) -> bool {
-        let condition = vm.get_register_value(r);
-        let truthy = match condition {
+    fn truthy_check(&self, value: DataType) -> bool {
+        let truthy = match value {
             DataType::Number(n) => n != 0,
             // TODO: Explicitly return false for future null datatype
             _ => true, // This WILL break if we add null
         };
         truthy
+    }
+
+    fn truthy_check_reg(&self, vm: &mut crate::vm::VM, reg_index: usize) -> bool {
+        let value = vm.get_register_value(reg_index);
+        self.truthy_check(value)
     }
 
     pub fn execute(&self, vm: &mut crate::vm::VM, program: Vec<Instruction>) -> Option<Vec<i32>> {
@@ -149,7 +153,7 @@ impl Instruction {
             },
 
             Instruction::If(condition_reg, instructions) => {
-                if self.truthy_check(vm, *condition_reg) {
+                if self.truthy_check_reg(vm, *condition_reg) {
                     println!("If statement met");
                     let old_pc = vm.pc;
                     
@@ -166,7 +170,7 @@ impl Instruction {
                 None
             },
             Instruction::ElseIf(condition_reg, instructions) => {
-                if !vm.state.if_statement_met && self.truthy_check(vm, *condition_reg) {
+                if !vm.state.if_statement_met && self.truthy_check_reg(vm, *condition_reg) {
                     let old_pc = vm.pc;
                     
                     vm.pc = 0;
@@ -193,12 +197,24 @@ impl Instruction {
                 None
             },
 
-            Instruction::While(condition_reg, instructions) => {
+            Instruction::While(condition_instructions, instructions) => {
                 // TODO: Do not use a register, as it could be modified in the loop.
                 // Use a Vec of instructions, the last of which is a return statement.
                 // Then check if the result of that program is truthy.
-                
-                while self.truthy_check(vm, *condition_reg) {
+                fn get_condition_result(vm: &mut VM, instr: Vec<Instruction>) -> DataType {
+                    let mut final_result = None;
+                    for i in instr {
+                        if let Some(result) = i.execute(vm, vec![]) {
+                            let reg = result[0];
+                            let value = vm.get_register_value(reg as usize);
+                            final_result = Some(value);
+                            break;
+                        }
+                    }
+                    final_result.unwrap()
+                }
+
+                while self.truthy_check(get_condition_result(vm, condition_instructions.to_vec())) {
                     let old_pc = vm.pc;
 
                     vm.pc = 0;
