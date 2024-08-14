@@ -78,6 +78,18 @@ impl VM {
         address
     }
 
+    pub fn get_from_memory(&self, address: usize) -> DataType {
+        self.memory[address].clone()
+    }
+
+    pub fn get_or_add_to_memory(&mut self, data: DataType) -> usize {
+        if let Some(address) = self.memory.iter().position(|d| *d == data) {
+            address
+        } else {
+            self.add_to_memory(data)
+        }
+    }
+
     pub fn get_register_value(&self, register: usize) -> DataType {
         if let Some(registers) = &self.registers {
             registers[register].get_value(&self.memory).unwrap()

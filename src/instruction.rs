@@ -58,6 +58,17 @@ impl Instruction {
         } else {
             panic!("Error: Cannot perform arithmetic on non-numeric values.");
         }
+       
+        // let r1 = vm.get_register_value(r1_index);
+        // let r2 = vm.get_register_value(r2_index);
+
+        // if let (DataType::Number(v1), DataType::Number(v2)) = (r1, r2) {
+        //     let result = fnc(v1, v2);
+        //     let address = vm.get_or_add_to_memory(DataType::Number(result));
+        //     vm.registers.as_mut().unwrap()[r1_index].address = address;
+        // } else {
+        //     panic!("Error: Cannot perform arithmetic on non-numeric values.");
+        // }
     }
 
     fn truthy_check(&self, value: DataType) -> bool {
@@ -109,7 +120,7 @@ impl Instruction {
             Instruction::Not(r) => { self.register_operation(vm, *r, 0, Box::new(|a, _| if a == 0 { 1 } else { 0 })); None },
 
             Instruction::LoadLiteral(r, value) => {
-                let address = vm.add_to_memory(DataType::Number(*value));
+                let address = vm.get_or_add_to_memory(DataType::Number(*value));
                 vm.registers.as_mut().unwrap()[*r].address = address;
                 None
             },
@@ -205,8 +216,8 @@ impl Instruction {
                     let mut final_result = None;
                     for i in instr {
                         if let Some(result) = i.execute(vm, vec![]) {
-                            let reg = result[0];
-                            let value = vm.get_register_value(reg as usize);
+                            let addr = result[0];
+                            let value = vm.get_from_memory(addr as usize);
                             final_result = Some(value);
                             break;
                         }
