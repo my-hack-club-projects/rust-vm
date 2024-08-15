@@ -68,3 +68,7 @@ while <expr> <codeBlock>
 ```
 expr: the expression whose result must be *truthy* (evaluates as true)
 codeBlock: the code block to be run repeatedly as long as the expression is truthy
+
+--
+## Math features
+Most programming languages lack a lot of things 'math syntax' has, for example '!' for factorial

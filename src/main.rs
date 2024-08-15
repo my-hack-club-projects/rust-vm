@@ -1,7 +1,13 @@
 mod ast;
 
 fn main() {
-    let code = "y + x = 1 + someFunction(1, 32 *2, 3)";
+    // multiline string
+    let code = r#"
+    while x ~= 10 {
+        x = x
+    }
+    "#;
+
     let ast = ast::parse(code);
     println!("{:?}", ast);
 }

@@ -9,6 +9,7 @@ pub enum Token {
     Number(i32), // Integer literals TODO: Add support for floating point numbers
     Operator(String), // Operators such as '+', '-', '*', ...
     Symbol(char), // Symbols such as '(', ')', '{', '}', ...
+    Assigner(String), // Assigner such as '=', '+=', ...
 }
 
 pub fn tokenize(input: &str) -> Vec<Token> {
@@ -44,29 +45,41 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                     }
                 }
                 match ident.as_str() {
-                    "var" | "mut" | "if" | "while" | "break" | "continue" | "fun" => tokens.push(Token::Keyword(ident)),
+                    "var" | "mut" | "if" | "else" | "elseif" | "while" | "break" | "continue" | "fun" => tokens.push(Token::Keyword(ident)),
                     _ => tokens.push(Token::Identifier(ident)),
                 }
             },
-            // Match operators
-            '+' | '-' | '*' | '/' | '%' | '=' | '<' | '>' => {
+            // Match operators, assigners and the NOT operator
+            '+' | '-' | '*' | '/' | '%' | '=' | '<' | '>' | '~' | '&' | '|' => {
                 let mut op = String::new();
-                while let Some(&c) = chars.peek() {
-                    if "+-*/=<>".contains(c) {
-                        op.push(c);
-                        chars.next();
-                    } else {
-                        break;
-                    }
+                // while let Some(&c) = chars.peek() {
+                //     if "+-*/%=<>~".contains(c) {
+                //         op.push(c);
+                //         chars.next();
+                //     } else {
+                //         break;
+                //     }
+                // }
+                op.push(ch);
+                chars.next();
+                if chars.peek() == Some(&'=') {
+                    op.push('=');
+                    chars.next();
                 }
-                if op == "=" {
-                    tokens.push(Token::Symbol('='));
+
+                let is_assigner = match op.as_str() {
+                    "+=" | "-=" | "*=" | "/=" | "%=" | "=" => true,
+                    _ => false,
+                };
+
+                if is_assigner {
+                    tokens.push(Token::Assigner(op));
                 } else {
                     tokens.push(Token::Operator(op));
                 }
             },
             // Match symbols
-            ',' | '(' | ')' | '{' | '}' | '~' | '!' => {
+            ',' | '(' | ')' | '{' | '}' | '!' => {
                 tokens.push(Token::Symbol(ch));
                 chars.next();
             },
