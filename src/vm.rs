@@ -1,5 +1,4 @@
 use core::panic;
-use std::ptr::null;
 
 use crate::symbol::{Register, Scope, Symbol, DataType};
 
