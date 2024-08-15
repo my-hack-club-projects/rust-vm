@@ -159,6 +159,7 @@ impl VM {
     }
 
     pub fn set_variable(&mut self, name: &str, value: DataType) {
+        println!("Deprecated function - never overwrite a value at a memory address.");
         for scope in self.scopes.iter_mut().rev() {
             if let Some(symbol) = scope.symbols.get(name) {
                 if !symbol.mutable {

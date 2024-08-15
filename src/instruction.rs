@@ -7,24 +7,44 @@ pub enum Instruction {
     Out(usize),
     Debug(usize),
 
-    Add(usize, usize),
-    Sub(usize, usize),
-    Mul(usize, usize),
-    Div(usize, usize),
-    Mod(usize, usize),
-    Exp(usize, usize),
+    // Add(usize, usize),
+    // Sub(usize, usize),
+    // Mul(usize, usize),
+    // Div(usize, usize),
+    // Mod(usize, usize),
+    // Exp(usize, usize),
 
-    Gt(usize, usize),   // GT R1, R2
-    Lt(usize, usize),   // LT R1, R2
-    Gte(usize, usize),  // GTE R1, R2
-    Lte(usize, usize),  // LTE R1, R2
-    Eq(usize, usize),   // EQ R1, R2
-    Ne(usize, usize),   // NE R1, R2
+    // Gt(usize, usize),   // GT R1, R2
+    // Lt(usize, usize),   // LT R1, R2
+    // Gte(usize, usize),  // GTE R1, R2
+    // Lte(usize, usize),  // LTE R1, R2
+    // Eq(usize, usize),   // EQ R1, R2
+    // Ne(usize, usize),   // NE R1, R2
     
-    And(usize, usize),  // AND R1, R2
-    Or(usize, usize),   // OR R1, R2
-    Xor(usize, usize),  // XOR R1, R2
-    Not(usize),         // NOT R1
+    // And(usize, usize),  // AND R1, R2
+    // Or(usize, usize),   // OR R1, R2
+    // Xor(usize, usize),  // XOR R1, R2
+    // Not(usize),         // NOT R1
+
+    // Arithmetic and logical operations. First argument is the register to be modified.
+    Add(usize, Vec<usize>), // ADD R1, [R2, R3, ...]
+    Sub(usize, Vec<usize>), // SUB R1, [R2, R3, ...]
+    Mul(usize, Vec<usize>), // MUL R1, [R2, R3, ...]
+    Div(usize, Vec<usize>), // DIV R1, [R2, R3, ...]
+    Mod(usize, Vec<usize>), // MOD R1, [R2, R3, ...]
+    Exp(usize, Vec<usize>), // EXP R1, [R2, R3, ...]
+
+    Gt(usize, Vec<usize>),   // GT R1, [R2, R3, ...]
+    Lt(usize, Vec<usize>),   // LT R1, [R2, R3, ...]
+    Gte(usize, Vec<usize>),  // GTE R1, [R2, R3, ...]
+    Lte(usize, Vec<usize>),  // LTE R1, [R2, R3, ...]
+    Eq(usize, Vec<usize>),   // EQ R1, [R2, R3, ...]
+    Ne(usize, Vec<usize>),   // NE R1, [R2, R3, ... 
+
+    And(usize, Vec<usize>),  // AND R1, [R2, R3, ...]
+    Or(usize, Vec<usize>),   // OR R1, [R2, R3, ...]
+    Xor(usize, Vec<usize>),  // XOR R1, [R2, R3, ...]
+    Not(usize, Vec<usize>),  // NOT R1, [R2]
 
     LoadLiteral(usize, i32), // LOADLITERAL R1, value
 
@@ -47,31 +67,25 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    fn register_operation(&self, vm: &mut crate::vm::VM, r1_index: usize, r2_index: usize, fnc: Box<dyn Fn(i32, i32) -> i32>) {
-        let registers = vm.registers.as_mut().unwrap();
-        let r1 = &registers[r1_index];
-        let r2 = &registers[r2_index];
+    fn register_operation(&self, vm: &mut crate::vm::VM, output_index: usize, compare_indices: Vec<usize>, fnc: Box<dyn Fn(i32, i32) -> i32>) {
+        let registers = vm.registers.unwrap();
+        let r1 = registers[compare_indices[0]];
+        let r2 = registers[compare_indices[1]];
         let v1 = r1.get_value(&vm.memory);
         let v2 = r2.get_value(&vm.memory);
         
         if let (Some(DataType::Number(v1)), Some(DataType::Number(v2))) = (v1, v2) {
-            r1.set_value(&mut vm.memory, DataType::Number(fnc(v1, v2)));
+            let result = DataType::Number(fnc(v1, v2));
+            // output_r.set_value(&mut vm.memory, result); // this would overwrite the value of what the register points to
+            // we want to instead add the value to memory and set the register to point to that address
+            let address = vm.get_or_add_to_memory(result); // Doesn't work - mutably borrow vm twice
+            // output_r.address = address;
+            vm.registers.as_mut().unwrap()[output_index].address = address;
         } else {
             panic!("Error: Cannot perform arithmetic on non-numeric values.");
         }
-       
-        // let r1 = vm.get_register_value(r1_index);
-        // let r2 = vm.get_register_value(r2_index);
-
-        // if let (DataType::Number(v1), DataType::Number(v2)) = (r1, r2) {
-        //     let result = fnc(v1, v2);
-        //     let address = vm.get_or_add_to_memory(DataType::Number(result));
-        //     vm.registers.as_mut().unwrap()[r1_index].address = address;
-        // } else {
-        //     panic!("Error: Cannot perform arithmetic on non-numeric values.");
-        // }
     }
-
+    
     fn truthy_check(&self, value: DataType) -> bool {
         let truthy = match value {
             DataType::Number(n) => n != 0,
@@ -101,24 +115,24 @@ impl Instruction {
                 None
             },
 
-            Instruction::Add(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a + b)); None },
-            Instruction::Sub(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a - b)); None },
-            Instruction::Mul(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a * b)); None },
-            Instruction::Div(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a / b)); None },
-            Instruction::Mod(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a % b)); None },
-            Instruction::Exp(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| a.pow(b as u32))); None },
+            Instruction::Add(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a + b)); None },
+            Instruction::Sub(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a - b)); None },
+            Instruction::Mul(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a * b)); None },
+            Instruction::Div(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a / b)); None },
+            Instruction::Mod(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a % b)); None },
+            Instruction::Exp(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| a.pow(b as u32))); None },
 
-            Instruction::Gt(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a > b { 1 } else { 0 })); None },
-            Instruction::Lt(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a < b { 1 } else { 0 })); None },
-            Instruction::Gte(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a >= b { 1 } else { 0 })); None },
-            Instruction::Lte(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a <= b { 1 } else { 0 })); None },
-            Instruction::Eq(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a == b { 1 } else { 0 })); None },
-            Instruction::Ne(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != b { 1 } else { 0 })); None },
+            Instruction::Gt(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a > b { 1 } else { 0 })); None },
+            Instruction::Lt(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a < b { 1 } else { 0 })); None },
+            Instruction::Gte(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a >= b { 1 } else { 0 })); None },
+            Instruction::Lte(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a <= b { 1 } else { 0 })); None },
+            Instruction::Eq(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a == b { 1 } else { 0 })); None },
+            Instruction::Ne(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a != b { 1 } else { 0 })); None },
 
-            Instruction::And(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != 0 && b != 0 { 1 } else { 0 })); None },
-            Instruction::Or(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != 0 || b != 0 { 1 } else { 0 })); None },
-            Instruction::Xor(r1, r2) => { self.register_operation(vm, *r1, *r2, Box::new(|a, b| if a != b { 1 } else { 0 })); None },
-            Instruction::Not(r) => { self.register_operation(vm, *r, 0, Box::new(|a, _| if a == 0 { 1 } else { 0 })); None },
+            Instruction::And(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a != 0 && b != 0 { 1 } else { 0 })); None },
+            Instruction::Or(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a != 0 || b != 0 { 1 } else { 0 })); None },
+            Instruction::Xor(out, comp) => { self.register_operation(vm, *out, comp.clone(), Box::new(|a, b| if a != b { 1 } else { 0 })); None },
+            Instruction::Not(out, comp) => { self.register_operation(vm, *out, vec![comp[0], 0], Box::new(|a, _| if a == 0 { 1 } else { 0 })); None },
 
             Instruction::LoadLiteral(r, value) => {
                 let address = vm.get_or_add_to_memory(DataType::Number(*value));

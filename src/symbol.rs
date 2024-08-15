@@ -27,6 +27,7 @@ impl Register {
 
     pub fn set_value(&self, memory: &mut Vec<DataType>, value: DataType) {
         if self.address < memory.len() {
+            println!("Setting mem[{}] to {}", self.address, value);
             memory[self.address] = value;
         } else {
             panic!("Error: Register address out of bounds.");
