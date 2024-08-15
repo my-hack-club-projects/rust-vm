@@ -26,9 +26,9 @@ now it's more clear that those are two expressions. when written in multiple lin
 
 **variable declaration:**
 ```
-<mut?> var <varName> = <expr>
+var/mut <varName> = <expr>
 ```
-mut?: 'mut' either is there or isn't. determines if the variable is mutable
+var/mut: either 'var' or 'mut', determines whether the variable is mutable
 varName: the name of the variable
 expr: the expression to be evaluated and assigned to the variable
 
