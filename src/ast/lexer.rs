@@ -63,7 +63,7 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                 tokens.push(Token::Operator(op));
             },
             // Match symbols
-            ',' | '(' | ')' | '{' | '}' | '?' | '!' => {
+            ',' | '(' | ')' | '{' | '}' | '~' | '!' => {
                 tokens.push(Token::Symbol(ch));
                 chars.next();
             },
