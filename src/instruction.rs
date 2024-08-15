@@ -11,25 +11,6 @@ pub enum Instruction {
     MemDump,
     RegDump,
 
-    // Add(usize, usize),
-    // Sub(usize, usize),
-    // Mul(usize, usize),
-    // Div(usize, usize),
-    // Mod(usize, usize),
-    // Exp(usize, usize),
-
-    // Gt(usize, usize),   // GT R1, R2
-    // Lt(usize, usize),   // LT R1, R2
-    // Gte(usize, usize),  // GTE R1, R2
-    // Lte(usize, usize),  // LTE R1, R2
-    // Eq(usize, usize),   // EQ R1, R2
-    // Ne(usize, usize),   // NE R1, R2
-    
-    // And(usize, usize),  // AND R1, R2
-    // Or(usize, usize),   // OR R1, R2
-    // Xor(usize, usize),  // XOR R1, R2
-    // Not(usize),         // NOT R1
-
     // Arithmetic and logical operations. First argument is the register to be modified.
     Add(usize, Vec<usize>), // ADD R1, [R2, R3, ...]
     Sub(usize, Vec<usize>), // SUB R1, [R2, R3, ...]
@@ -72,9 +53,10 @@ pub enum Instruction {
 
 impl Instruction {
     fn register_operation(&self, vm: &mut crate::vm::VM, output_index: usize, compare_indices: Vec<usize>, fnc: Box<dyn Fn(i32, i32) -> i32>) {
-        let registers = vm.registers.unwrap();
-        let r1 = registers[compare_indices[0]];
-        let r2 = registers[compare_indices[1]];
+        // let registers = vm.registers.unwrap();
+        let registers = vm.registers.as_ref().unwrap();
+        let r1 = &registers[compare_indices[0]];
+        let r2 = &registers[compare_indices[1]];
         let v1 = r1.get_value(&vm.memory);
         let v2 = r2.get_value(&vm.memory);
         
@@ -101,7 +83,7 @@ impl Instruction {
         self.truthy_check(value)
     }
 
-    pub fn execute(&self, vm: &mut crate::vm::VM, program: Vec<Instruction>) -> Option<Vec<i32>> {
+    pub fn execute(&self, vm: &mut crate::vm::VM, program: Vec<Instruction>) -> Option<Vec<Rc<RefCell<DataType>>>> {
         match self {
             Instruction::Halt => { vm.running = false; None },
             Instruction::Out(r) => {
@@ -111,8 +93,8 @@ impl Instruction {
             },
             Instruction::Debug(r) => {
                 let value = vm.get_register_value(*r);
-                let address = vm.get_register_address(*r);
-                println!("{:?} at mem[{}]", value, address);
+                let address = vm.get_register_address_index(*r);
+                println!("Register {}: {:?}, mem[{}]", *r, value, address);
                 None
             },
             Instruction::MemDump => {
@@ -169,7 +151,7 @@ impl Instruction {
             },
             Instruction::StoreVar(source_register, var_name) => {
                 // Get the address that the register points to and set the variable to point to that address.
-                let address = vm.registers.as_ref().unwrap()[*source_register].address;
+                let address = vm.registers.as_ref().unwrap()[*source_register].address.clone();
                 vm.set_variable_address(var_name, address);
                 None
             },
@@ -185,7 +167,7 @@ impl Instruction {
             },
 
             Instruction::RetFunc(register_indices) => {
-                let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address as i32).collect::<Vec<i32>>();
+                let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address.clone()).collect::<Vec<Rc<RefCell<DataType>>>>();
                 Some(return_addresses)
             },
 
@@ -238,13 +220,12 @@ impl Instruction {
                     let mut final_result: Option<DataType> = None;
                     for i in instr {
                         if let Some(result) = i.execute(vm, vec![]) {
-                            let addr = result[0];
-                            let value: Rc<RefCell<DataType>> = vm.get_from_memory(addr as usize);
+                            let value = result[0].clone();
                             final_result = Some(Rc::clone(&value).borrow().clone());
                             break;
                         }
                     }
-                    println!("Condition result: {:?}", final_result);
+                    
                     final_result.unwrap()
                 }
 

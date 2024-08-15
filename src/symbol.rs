@@ -1,40 +1,38 @@
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use crate::instruction::Instruction;
 use std::fmt;
 
 // This programming language is supposed to be number-only. There are no datatypes like strings or booleans.
 // Only numbers and functions.
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Register {
-    pub address: usize,
+    pub address: Rc<RefCell<DataType>>,
 }
 
 impl Register {
-    pub fn new(address: usize) -> Register {
+    pub fn new(address: Rc<RefCell<DataType>>) -> Register {
         Register {
             address,
         }
     }
 
     pub fn get_value(&self, memory: &[Rc<RefCell<DataType>>]) -> Option<DataType> {
-        // Some(Rc::clone(&memory[self.address]))
-        if self.address < memory.len() {
-            Some(Rc::clone(&memory[self.address]).borrow().clone())
-        } else {
-            panic!("Error: Register address out of bounds.");
+        if self.address.borrow().is_null() {
+            return None;
+        }
+        let address = self.address.borrow();
+        match &*address {
+            DataType::Number(n) => Some(DataType::Number(*n)),
+            DataType::Function(_, _, _) => Some(DataType::Function(vec![], vec![], Scope::new(None))),
+            DataType::Null() => None,
         }
     }
 
     pub fn set_value(&self, memory: &mut Vec<DataType>, value: DataType) {
-        if self.address < memory.len() {
-            println!("Setting mem[{}] to {}", self.address, value);
-            memory[self.address] = value;
-        } else {
-            panic!("Error: Register address out of bounds.");
-        }
+        *self.address.borrow_mut() = value;
     }
     
 }
@@ -44,6 +42,16 @@ pub enum DataType {
     Number(i32),
     Function(Vec<String>, Vec<Instruction>, Scope),
     Null(),
+}
+
+impl DataType {
+    /// Returns `true` if the data type is [`Null`].
+    ///
+    /// [`Null`]: DataType::Null
+    #[must_use]
+    pub fn is_null(&self) -> bool {
+        matches!(self, Self::Null(..))
+    }
 }
 
 impl fmt::Display for DataType {
@@ -60,7 +68,7 @@ impl fmt::Display for DataType {
 #[allow(dead_code)]
 pub struct Symbol {
     pub name: String,
-    pub address: usize,
+    pub address: Rc<RefCell<DataType>>,
     pub mutable: bool,
 }
 
