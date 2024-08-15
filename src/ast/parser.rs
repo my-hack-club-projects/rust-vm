@@ -38,6 +38,41 @@ pub enum ASTNode {
     // TODO: Add more AST nodes
 }
 
+fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
+    tokens.next(); // Consume the '(' symbol
+    let mut args = Vec::new();
+    let mut level = 1;
+    let mut current_expr = Vec::new();
+    while let Some(token) = tokens.next() {
+        fn push_expr(expr: &mut Vec<Token>, nodes: &mut Vec<ASTNode>) {
+            if !expr.is_empty() {
+                nodes.push(parse_expr(&mut expr.iter().peekable()));
+            }
+        }
+        match token {
+            Token::Symbol('(') => level += 1,
+            Token::Symbol(')') => {
+                if level == 1 {
+                    push_expr(&mut current_expr, &mut args);
+                }
+                level -= 1;
+            }
+            Token::Symbol(',') => {
+                push_expr(&mut current_expr, &mut args);
+                current_expr = Vec::new();
+            },
+            _ => {
+                current_expr.push(token.clone());
+            },
+        }
+        if level == 0 {
+            break;
+        }
+    }
+
+    ASTNode::FunctionCall { name: name.clone(), args }
+}
+
 fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
     let mut left = match tokens.next() {
         Some(Token::Number(value)) => ASTNode::Number(*value),
@@ -52,6 +87,12 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTN
                 tokens.next(); // Consume the operator
                 let right = parse_expr(tokens);
                 left = ASTNode::BinaryOp { op: op.to_string(), left: Box::new(left), right: Box::new(right) };
+            },
+            Token::Symbol('(') => {
+                left = parse_fn_call(match left {
+                    ASTNode::Identifier(name) => name,
+                    _ => panic!("Expected an identifier"),
+                }, tokens);
             },
             _ => break,
         }
@@ -74,37 +115,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                         nodes.push(ASTNode::Assignment { name: name.clone(), value: Box::new(value) });
                     },
                     Some(&Token::Symbol('(')) => {
-                        tokens.next(); // Consume the '(' symbol
-                        let mut args = Vec::new();
-                        let mut level = 1;
-                        let mut current_expr = Vec::new();
-                        while let Some(token) = tokens.next() {
-                            fn push_expr(expr: &mut Vec<Token>, nodes: &mut Vec<ASTNode>) {
-                                if !expr.is_empty() {
-                                    nodes.push(parse_expr(&mut expr.iter().peekable()));
-                                }
-                            }
-                            match token {
-                                Token::Symbol('(') => level += 1,
-                                Token::Symbol(')') => {
-                                    if level == 1 {
-                                        push_expr(&mut current_expr, &mut args);
-                                    }
-                                    level -= 1;
-                                }
-                                Token::Symbol(',') => {
-                                    push_expr(&mut current_expr, &mut args);
-                                    current_expr = Vec::new();
-                                },
-                                _ => {
-                                    current_expr.push(token.clone());
-                                },
-                            }
-                            if level == 0 {
-                                break;
-                            }
-                        }
-                        nodes.push(ASTNode::FunctionCall { name: name.clone(), args });
+                        nodes.push(parse_fn_call(name.clone(), &mut tokens));
                     },
                     _ => nodes.push(ASTNode::Identifier(name.clone())),
                 }
