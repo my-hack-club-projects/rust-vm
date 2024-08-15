@@ -6,6 +6,8 @@ pub enum Instruction {
     Halt,
     Out(usize),
     Debug(usize),
+    MemDump,
+    RegDump,
 
     // Add(usize, usize),
     // Sub(usize, usize),
@@ -76,10 +78,7 @@ impl Instruction {
         
         if let (Some(DataType::Number(v1)), Some(DataType::Number(v2))) = (v1, v2) {
             let result = DataType::Number(fnc(v1, v2));
-            // output_r.set_value(&mut vm.memory, result); // this would overwrite the value of what the register points to
-            // we want to instead add the value to memory and set the register to point to that address
-            let address = vm.get_or_add_to_memory(result); // Doesn't work - mutably borrow vm twice
-            // output_r.address = address;
+            let address = vm.get_or_add_to_memory(result);
             vm.registers.as_mut().unwrap()[output_index].address = address;
         } else {
             panic!("Error: Cannot perform arithmetic on non-numeric values.");
@@ -89,7 +88,7 @@ impl Instruction {
     fn truthy_check(&self, value: DataType) -> bool {
         let truthy = match value {
             DataType::Number(n) => n != 0,
-            // TODO: Explicitly return false for future null datatype
+            DataType::Null() => false,
             _ => true, // This WILL break if we add null
         };
         truthy
@@ -112,6 +111,14 @@ impl Instruction {
                 let value = vm.get_register_value(*r);
                 let address = vm.get_register_address(*r);
                 println!("{:?} at mem[{}]", value, address);
+                None
+            },
+            Instruction::MemDump => {
+                println!("{:?}", vm.memory);
+                None
+            },
+            Instruction::RegDump => {
+                println!("{:?}", vm.registers);
                 None
             },
 
@@ -173,14 +180,12 @@ impl Instruction {
             },
 
             Instruction::RetFunc(register_indices) => {
-                // TODO: Set vm.running to false right before returning
                 let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address as i32).collect::<Vec<i32>>();
                 Some(return_addresses)
             },
 
             Instruction::If(condition_reg, instructions) => {
                 if self.truthy_check_reg(vm, *condition_reg) {
-                    println!("If statement met");
                     let old_pc = vm.pc;
                     
                     vm.pc = 0;
@@ -224,9 +229,6 @@ impl Instruction {
             },
 
             Instruction::While(condition_instructions, instructions) => {
-                // TODO: Do not use a register, as it could be modified in the loop.
-                // Use a Vec of instructions, the last of which is a return statement.
-                // Then check if the result of that program is truthy.
                 fn get_condition_result(vm: &mut VM, instr: Vec<Instruction>) -> DataType {
                     let mut final_result = None;
                     for i in instr {

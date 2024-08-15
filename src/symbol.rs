@@ -40,6 +40,7 @@ impl Register {
 pub enum DataType {
     Number(i32),
     Function(Vec<String>, Vec<Instruction>, Scope),
+    Null(),
 }
 
 impl fmt::Display for DataType {
@@ -47,6 +48,7 @@ impl fmt::Display for DataType {
         match self {
             DataType::Number(n) => write!(f, "{}", n),
             DataType::Function(_, _, _) => write!(f, "Function"),
+            DataType::Null() => write!(f, "Null"),
         }
     }
 }

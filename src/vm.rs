@@ -1,4 +1,5 @@
 use core::panic;
+use std::ptr::null;
 
 use crate::symbol::{Register, Scope, Symbol, DataType};
 
@@ -27,9 +28,13 @@ pub struct VM {
     pub scopes: Vec<Scope>,
 }
 
+const MEM_SIZE: usize = 1024;
+
 impl VM {
     pub fn new() -> Self {
-        let vm_memory = vec![DataType::Number(0); 1024]; // TODO: use null instead of the number 0
+        let null_addr = MEM_SIZE - 1;
+        let mut vm_memory = vec![DataType::Null(); MEM_SIZE - 1]; // The last address is reserved for a null value
+        vm_memory.push(DataType::Null()); // The last address is reserved for a null value
 
         let mut vm = VM {
             pc: 0,
@@ -43,7 +48,7 @@ impl VM {
         };
     
         // Initialize the registers
-        vm.registers = Some([Register::new(0); 8]);
+        vm.registers = Some([Register::new(null_addr); 8]);
     
         vm
     }
@@ -71,11 +76,14 @@ impl VM {
     }
 
     fn get_free_address(&self) -> usize {
-        self.memory.iter().position(|data| *data == DataType::Number(0)).unwrap()
+        self.memory.iter().position(|data| *data == DataType::Null()).unwrap()
     }
 
     pub fn add_to_memory(&mut self, data: DataType) -> usize {
         let address = self.get_free_address();
+        if address == MEM_SIZE - 1 {
+            panic!("Error: Memory full.");
+        }
         self.memory[address] = data;
         address
     }
