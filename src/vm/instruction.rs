@@ -1,6 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::{symbol::DataType, vm::VM};
+use crate::vm::symbol::DataType;
+use crate::vm::VM;
 
 #[derive(Clone, Debug, PartialEq)]
 #[allow(dead_code)]

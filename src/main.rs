@@ -1,10 +1,7 @@
 use std::vec;
 
-use instruction::Instruction;
-
-mod instruction;
 mod vm;
-mod symbol;
+use vm::instruction::Instruction;
 
 fn main() {
     let mut vm = vm::VM::new();

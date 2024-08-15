@@ -1,8 +1,11 @@
 use core::panic;
-use std::{cell::Ref, rc::Rc};
+use std::rc::Rc;
 use std::cell::RefCell;
 
-use crate::symbol::{Register, Scope, Symbol, DataType};
+pub mod instruction;
+pub mod symbol;
+
+use symbol::{Register, Scope, Symbol, DataType};
 
 pub struct VMState {
     pub if_statement_met: bool,
@@ -60,7 +63,7 @@ impl VM {
         vm
     }
 
-    pub fn execute(&mut self, program: Vec<crate::instruction::Instruction>) -> Vec<Rc<RefCell<DataType>>> {
+    pub fn execute(&mut self, program: Vec<instruction::Instruction>) -> Vec<Rc<RefCell<DataType>>> {
         let mut output = Vec::new();
         while self.running && self.pc < program.len() {
             let instruction = &program[self.pc];
@@ -205,7 +208,7 @@ impl VM {
         panic!("Error: Variable '{}' not found.", name);
     }
 
-    pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<crate::instruction::Instruction>) {
+    pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<instruction::Instruction>) {
         let function_address_index = self.get_free_address_index();
         let function_symbol = Symbol {
             name: name.clone(),

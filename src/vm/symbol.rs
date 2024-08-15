@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::{Ref, RefCell};
-use crate::instruction::Instruction;
 use std::fmt;
+
+use crate::vm::instruction::Instruction;
 
 // This programming language is supposed to be number-only. There are no datatypes like strings or booleans.
 // Only numbers and functions.
