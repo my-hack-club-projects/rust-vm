@@ -9,7 +9,6 @@ pub enum Token {
     Number(i32), // Integer literals TODO: Add support for floating point numbers
     Operator(String), // Operators such as '+', '-', '*', ...
     Symbol(char), // Symbols such as '(', ')', '{', '}', ...
-    EOF,
 }
 
 pub fn tokenize(input: &str) -> Vec<Token> {
@@ -60,7 +59,11 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                         break;
                     }
                 }
-                tokens.push(Token::Operator(op));
+                if op == "=" {
+                    tokens.push(Token::Symbol('='));
+                } else {
+                    tokens.push(Token::Operator(op));
+                }
             },
             // Match symbols
             ',' | '(' | ')' | '{' | '}' | '~' | '!' => {
@@ -72,6 +75,5 @@ pub fn tokenize(input: &str) -> Vec<Token> {
         }
     }
 
-    tokens.push(Token::EOF);
     tokens
 }

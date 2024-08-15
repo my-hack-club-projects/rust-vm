@@ -1,9 +1,7 @@
 mod lexer;
 mod parser;
 
-pub fn parse(input: &str) -> Vec<lexer::Token>{
+pub fn parse(input: &str) -> Vec<parser::ASTNode>{
     let tokens = lexer::tokenize(input);
-    // parser::parse(tokens) // TODO: Implement parser
-
-    tokens
+    parser::parse(tokens)
 }
