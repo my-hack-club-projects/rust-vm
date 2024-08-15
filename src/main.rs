@@ -10,17 +10,17 @@ fn main() {
     let mut vm = vm::VM::new();
 
     let program = vec![
-        Instruction::LoadLiteral(0, 1),
-        Instruction::RegDump,
-        // Instruction::DeclareMutVar(0, "x".to_string()),
+        Instruction::LoadLiteral(0, 2),
+        Instruction::MemDump,
+        Instruction::DeclareMutVar(0, "x".to_string()),
 
-        Instruction::Add(3, vec![7, 6]),
-        Instruction::Debug(3),
-
+        Instruction::LoadLiteral(1, 3),
         // Instruction::While(
         //     vec![
         //         Instruction::LoadVar(0, "x".to_string()),
+        //         Instruction::Debug(0),
         //         Instruction::LoadLiteral(1, 10),
+        //         Instruction::Debug(0),
         //         Instruction::Lt(0, vec![0, 1]), // Loop while x < 10
         //         Instruction::RetFunc(vec![0]),
         //     ],

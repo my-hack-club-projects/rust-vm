@@ -1,4 +1,6 @@
 use core::panic;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use crate::symbol::{Register, Scope, Symbol, DataType};
 
@@ -22,18 +24,25 @@ pub struct VM {
 
     pub state: VMState,
 
-    pub memory: Vec<DataType>,
+    pub memory: Vec<Rc<RefCell<DataType>>>,
     pub registers: Option<[Register; 8]>,
     pub scopes: Vec<Scope>,
 }
 
-const MEM_SIZE: usize = 1024;
+const MEM_SIZE: usize = 32; //1024;
 
 impl VM {
     pub fn new() -> Self {
         let null_addr = MEM_SIZE - 1;
-        let mut vm_memory = vec![DataType::Null(); MEM_SIZE - 1]; // The last address is reserved for a null value
-        vm_memory.push(DataType::Null()); // The last address is reserved for a null value
+        // let mut vm_memory = vec![Rc::new(RefCell::new(DataType::Null())); MEM_SIZE - 1]; // The last address is reserved for a null value
+        // vm_memory.push(Rc::new(RefCell::new(DataType::Null()))); // The last address is reserved for a null value
+
+        // Create the memory without cloning the same Rc<RefCell<DataType>> 1023 times
+        let mut vm_memory = Vec::with_capacity(MEM_SIZE);
+        for _ in 0..MEM_SIZE - 1 {
+            vm_memory.push(Rc::new(RefCell::new(DataType::Null())));
+        }
+        vm_memory.push(Rc::new(RefCell::new(DataType::Null()))); // The last address is reserved for a null value
 
         let mut vm = VM {
             pc: 0,
@@ -75,33 +84,50 @@ impl VM {
     }
 
     fn get_free_address(&self) -> usize {
-        self.memory.iter().position(|data| *data == DataType::Null()).unwrap()
+        // self.memory.iter().position(|data| *data == Rc::new(RefCell::new(DataType::Null()))).unwrap()
+        // DEBUG: Print out all the memory addresses with their reference counts
+        for (i, data) in self.memory.iter().enumerate() {
+            println!("Memory address {}: {:?}", i, Rc::strong_count(data));
+        }
+        self.memory.iter().position(|data| Rc::strong_count(data) == 1).unwrap()
     }
 
     pub fn add_to_memory(&mut self, data: DataType) -> usize {
         let address = self.get_free_address();
+        println!("Adding {} to memory address {}", data, address);
         if address == MEM_SIZE - 1 {
             panic!("Error: Memory full.");
         }
-        self.memory[address] = data;
+        
+        // Clone the Rc to increment the reference count
+        let new_data = Rc::new(RefCell::new(data));
+        self.memory[address] = new_data.clone(); // This increments the reference count
+    
+        // DEBUG: print new reference count
+        println!("New reference count: {}", Rc::strong_count(&self.memory[address])); // Now the reference count should be increased
+    
         address
     }
 
-    pub fn get_from_memory(&self, address: usize) -> DataType {
-        self.memory[address].clone()
+    pub fn get_from_memory(&self, address: usize) -> Rc<RefCell<DataType>> {
+        Rc::clone(&self.memory[address])
     }
 
     pub fn get_or_add_to_memory(&mut self, data: DataType) -> usize {
-        if let Some(address) = self.memory.iter().position(|d| *d == data) {
+        if let Some(address) = self.memory.iter().position(|d| *d.borrow() == data) {
+            println!("Found existing memory address {} while adding {}", address, data);
+            println!("Contents of memory address {}: {:?}", address, self.memory[address].borrow());
             address
         } else {
+            println!("Didn't find {}. Adding to memory", data);
             self.add_to_memory(data)
         }
     }
 
     pub fn get_register_value(&self, register: usize) -> DataType {
         if let Some(registers) = &self.registers {
-            registers[register].get_value(&self.memory).unwrap()
+            // Rc::clone(&registers[register].get_value(&self.memory).unwrap())
+            Rc::clone(&self.memory[registers[register].address]).borrow().clone()
         } else {
             panic!("Registers not initialized.");
         }
@@ -116,8 +142,7 @@ impl VM {
     }
 
     pub fn declare_variable(&mut self, name: String, value: DataType, mutable: bool) {
-        let address = self.get_free_address();
-        self.memory[address] = value;
+        let address = self.get_or_add_to_memory(value);
 
         self.declare_variable_from_memory(name, address, mutable);
     }
@@ -151,7 +176,7 @@ impl VM {
 
     pub fn get_variable(&self, name: &str) -> Option<DataType> {
         if let Some(symbol) = self.get_variable_base(name) {
-            Some(self.memory[symbol.address].clone())
+            Some(self.get_from_memory(symbol.address).borrow().clone())
         } else {
             None
         }
@@ -165,20 +190,20 @@ impl VM {
         }
     }
 
-    pub fn set_variable(&mut self, name: &str, value: DataType) {
-        println!("Deprecated function - never overwrite a value at a memory address.");
-        for scope in self.scopes.iter_mut().rev() {
-            if let Some(symbol) = scope.symbols.get(name) {
-                if !symbol.mutable {
-                    panic!("Error: Variable '{}' is not mutable.", name);
-                }
+    // pub fn set_variable(&mut self, name: &str, value: DataType) {
+    //     println!("Deprecated function - never overwrite a value at a memory address.");
+    //     for scope in self.scopes.iter_mut().rev() {
+    //         if let Some(symbol) = scope.symbols.get(name) {
+    //             if !symbol.mutable {
+    //                 panic!("Error: Variable '{}' is not mutable.", name);
+    //             }
 
-                self.memory[symbol.address] = value;
-                return;
-            }
-        }
-        panic!("Error: Variable '{}' not found.", name);
-    }
+    //             self.memory[symbol.address] = value;
+    //             return;
+    //         }
+    //     }
+    //     panic!("Error: Variable '{}' not found.", name);
+    // }
 
     pub fn set_variable_address(&mut self, name: &str, address: usize) {
         for scope in self.scopes.iter_mut().rev() {
@@ -196,7 +221,7 @@ impl VM {
 
     pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<crate::instruction::Instruction>) {
         let function_address = self.get_free_address();
-        let function = Symbol {
+        let function_symbol = Symbol {
             name: name.clone(),
             address: function_address,
             mutable: false,
@@ -205,14 +230,16 @@ impl VM {
             for (name, symbol) in scope.symbols.iter() {
                 acc.symbols.insert(name.clone(), symbol.clone());
             }
-            acc.symbols.insert(name.clone(), function.clone()); // Add the function that's being declared
+            acc.symbols.insert(name.clone(), function_symbol.clone()); // Add the function that's being declared
             acc
         });
 
         if let Some(current_scope) = self.scopes.last_mut() {
-            self.memory[function_address] = DataType::Function(params.clone(), instructions.clone(), joined_scopes);
+            // self.memory[function_address] = DataType::Function(params.clone(), instructions.clone(), joined_scopes);
+            let function = DataType::Function(params.clone(), instructions.clone(), joined_scopes);
+            self.memory[function_address] = Rc::new(RefCell::new(function));
             
-            current_scope.symbols.insert(name, function);
+            current_scope.symbols.insert(name, function_symbol);
         }
     }
 

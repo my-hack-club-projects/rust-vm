@@ -1,3 +1,5 @@
+use std::{cell::RefCell, rc::Rc};
+
 use crate::{symbol::DataType, vm::VM};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -114,7 +116,10 @@ impl Instruction {
                 None
             },
             Instruction::MemDump => {
-                println!("{:?}", vm.memory);
+                // println!("{:?}", vm.memory); // Need to print reference counts
+                for (i, v) in vm.memory.iter().enumerate() {
+                    println!("mem[{}]: {:?}", i, Rc::strong_count(v));
+                }
                 None
             },
             Instruction::RegDump => {
@@ -230,15 +235,16 @@ impl Instruction {
 
             Instruction::While(condition_instructions, instructions) => {
                 fn get_condition_result(vm: &mut VM, instr: Vec<Instruction>) -> DataType {
-                    let mut final_result = None;
+                    let mut final_result: Option<DataType> = None;
                     for i in instr {
                         if let Some(result) = i.execute(vm, vec![]) {
                             let addr = result[0];
-                            let value = vm.get_from_memory(addr as usize);
-                            final_result = Some(value);
+                            let value: Rc<RefCell<DataType>> = vm.get_from_memory(addr as usize);
+                            final_result = Some(Rc::clone(&value).borrow().clone());
                             break;
                         }
                     }
+                    println!("Condition result: {:?}", final_result);
                     final_result.unwrap()
                 }
 

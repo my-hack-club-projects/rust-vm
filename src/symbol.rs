@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 use crate::instruction::Instruction;
 use std::fmt;
 
@@ -17,9 +19,10 @@ impl Register {
         }
     }
 
-    pub fn get_value(&self, memory: &Vec<DataType>) -> Option<DataType> {
+    pub fn get_value(&self, memory: &[Rc<RefCell<DataType>>]) -> Option<DataType> {
+        // Some(Rc::clone(&memory[self.address]))
         if self.address < memory.len() {
-            Some(memory[self.address].clone())
+            Some(Rc::clone(&memory[self.address]).borrow().clone())
         } else {
             panic!("Error: Register address out of bounds.");
         }
