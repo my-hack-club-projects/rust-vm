@@ -26,6 +26,7 @@ enum Operator {
     Le,
     Gt,
     Ge,
+    Neg,
 }
 
 #[derive(Debug)]
@@ -114,12 +115,52 @@ fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter
     ASTNode::FunctionCall { name: name.clone(), args }
 }
 
+fn parse_parantheses(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
+    let mut expr_tokens = Vec::new();
+    let mut level = 1;
+    while let Some(token) = tokens.next() {
+        match token {
+            Token::Symbol('(') => level += 1,
+            Token::Symbol(')') => {
+                level -= 1;
+                if level == 0 {
+                    break;
+                }
+            },
+            _ => {},
+        }
+        expr_tokens.push(token.clone());
+    }
+    parse_expr(&mut expr_tokens.iter().peekable())
+}
+
 fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
     let mut left = match tokens.next() {
         Some(Token::Number(value)) => ASTNode::Number(*value),
         Some(Token::Identifier(name)) => ASTNode::Identifier(name.clone()),
-        
-        // TODO: Match unary operators (negation -, NOT ~)
+        Some(Token::Symbol('(')) => {
+            parse_parantheses(tokens)
+        },
+        Some(Token::Operator(op)) => {
+            let op_enum = match op.as_str() {
+                "-" => Operator::Neg,
+                "~" => Operator::Not,
+                _ => panic!("Unexpected operator"),
+            };
+            let next_token = tokens.next();
+            let expr = match next_token {
+                Some(Token::Number(value)) => ASTNode::Number(*value),
+                Some(Token::Identifier(name)) => match tokens.peek() {
+                    Some(&Token::Symbol('(')) => parse_fn_call(name.clone(), tokens),
+                    _ => ASTNode::Identifier(name.clone()),
+                },
+                Some(Token::Symbol('(')) => {
+                    parse_parantheses(tokens)
+                }
+                _ => panic!("Expected a number or an identifier"),
+            };
+            ASTNode::UnaryOp { op: op_enum, expr: Box::new(expr) }
+        },
         
         _ => panic!("Unexpected token"),
     };
@@ -148,12 +189,31 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTN
                 left = ASTNode::BinaryOp { op: op_enum, left: Box::new(left), right: Box::new(right) };
             },
             Token::Symbol('(') => {
-                // TODO: Only consider ( as the start of a function call if the previous token is an identifier
-                // Otherwise, call parse_expr recursively on the expression inside the parentheses
-                left = parse_fn_call(match left {
-                    ASTNode::Identifier(name) => name,
-                    _ => panic!("Expected an identifier"),
-                }, tokens);
+                if let ASTNode::Identifier(name) = &left {
+                    left = parse_fn_call(name.clone(), tokens);
+                } else {
+                    tokens.next(); // Consume the '(' symbol
+                    let mut expr_tokens = Vec::new();
+                    let mut level = 1;
+                    while let Some(token) = tokens.next() {
+                        match token {
+                            Token::Symbol('(') => level += 1,
+                            Token::Symbol(')') => {
+                                level -= 1;
+                                if level == 0 {
+                                    break;
+                                }
+                            },
+                            _ => {},
+                        }
+                        expr_tokens.push(token.clone());
+                    }
+                    left = parse_expr(&mut expr_tokens.iter().peekable());
+                }
+                // left = parse_fn_call(match left {
+                //     ASTNode::Identifier(name) => name,
+                //     _ => panic!("Expected an identifier"),
+                // }, tokens);
             },
             _ => break,
         }
