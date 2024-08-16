@@ -29,6 +29,18 @@ enum Operator {
     Neg,
 }
 
+fn precedence(op: &Operator) -> i32 {
+    match op {
+        Operator::Or => 1,
+        Operator::And => 2,
+        Operator::Eq | Operator::Ne => 3,
+        Operator::Lt | Operator::Le | Operator::Gt | Operator::Ge => 4,
+        Operator::Add | Operator::Sub => 5,
+        Operator::Mul | Operator::Div | Operator::Mod => 6,
+        Operator::Neg | Operator::Not => 7, // Unary operators
+    }
+}
+
 #[derive(Debug)]
 pub enum ASTNode {
     Identifier(String), // Variable, function names
@@ -88,7 +100,7 @@ fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter
     while let Some(token) = tokens.next() {
         fn push_expr(expr: &mut Vec<Token>, nodes: &mut Vec<ASTNode>) {
             if !expr.is_empty() {
-                nodes.push(parse_expr(&mut expr.iter().peekable()));
+                nodes.push(parse_expr(&mut expr.iter().peekable(), 0));
             }
         }
         match token {
@@ -131,96 +143,69 @@ fn parse_parantheses(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) 
         }
         expr_tokens.push(token.clone());
     }
-    parse_expr(&mut expr_tokens.iter().peekable())
+    parse_expr(&mut expr_tokens.iter().peekable(), 0)
 }
 
-fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
+fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_prec: i32) -> ASTNode {
+    // Parse the left-hand side expression (either a number, identifier, or a parenthesized expression)
     let mut left = match tokens.next() {
         Some(Token::Number(value)) => ASTNode::Number(*value),
         Some(Token::Identifier(name)) => ASTNode::Identifier(name.clone()),
-        Some(Token::Symbol('(')) => {
-            parse_parantheses(tokens)
-        },
+        Some(Token::Symbol('(')) => parse_parantheses(tokens),
         Some(Token::Operator(op)) => {
             let op_enum = match op.as_str() {
                 "-" => Operator::Neg,
                 "~" => Operator::Not,
                 _ => panic!("Unexpected operator"),
             };
-            let next_token = tokens.next();
-            let expr = match next_token {
-                Some(Token::Number(value)) => ASTNode::Number(*value),
-                Some(Token::Identifier(name)) => match tokens.peek() {
-                    Some(&Token::Symbol('(')) => parse_fn_call(name.clone(), tokens),
-                    _ => ASTNode::Identifier(name.clone()),
-                },
-                Some(Token::Symbol('(')) => {
-                    parse_parantheses(tokens)
-                }
-                _ => panic!("Expected a number or an identifier"),
-            };
-            ASTNode::UnaryOp { op: op_enum, expr: Box::new(expr) }
+            let next_expr = parse_expr(tokens, precedence(&op_enum));
+            ASTNode::UnaryOp {
+                op: op_enum,
+                expr: Box::new(next_expr),
+            }
         },
-        
         _ => panic!("Unexpected token"),
     };
 
-    while let Some(&token) = tokens.peek() {
-        match token {
-            Token::Operator(op) => {
-                tokens.next(); // Consume the operator
-                let right = parse_expr(tokens);
-                let op_enum = match op.as_str() {
-                    "+" => Operator::Add,
-                    "-" => Operator::Sub,
-                    "*" => Operator::Mul,
-                    "/" => Operator::Div,
-                    "%" => Operator::Mod,
-                    "&" => Operator::And,
-                    "|" => Operator::Or,
-                    "<" => Operator::Lt,
-                    "<=" => Operator::Le,
-                    ">" => Operator::Gt,
-                    ">=" => Operator::Ge,
-                    "==" => Operator::Eq,
-                    "~=" => Operator::Ne,
-                    _ => panic!("Unexpected operator"),
-                };
-                left = ASTNode::BinaryOp { op: op_enum, left: Box::new(left), right: Box::new(right) };
-            },
-            Token::Symbol('(') => {
-                if let ASTNode::Identifier(name) = &left {
-                    left = parse_fn_call(name.clone(), tokens);
-                } else {
-                    tokens.next(); // Consume the '(' symbol
-                    let mut expr_tokens = Vec::new();
-                    let mut level = 1;
-                    while let Some(token) = tokens.next() {
-                        match token {
-                            Token::Symbol('(') => level += 1,
-                            Token::Symbol(')') => {
-                                level -= 1;
-                                if level == 0 {
-                                    break;
-                                }
-                            },
-                            _ => {},
-                        }
-                        expr_tokens.push(token.clone());
-                    }
-                    left = parse_expr(&mut expr_tokens.iter().peekable());
-                }
-                // left = parse_fn_call(match left {
-                //     ASTNode::Identifier(name) => name,
-                //     _ => panic!("Expected an identifier"),
-                // }, tokens);
-            },
-            _ => break,
+    // Process all operators following the left-hand side, respecting precedence
+    while let Some(&Token::Operator(ref op_str)) = tokens.peek() {
+        let op_enum = match op_str.as_str() {
+            "+" => Operator::Add,
+            "-" => Operator::Sub,
+            "*" => Operator::Mul,
+            "/" => Operator::Div,
+            "%" => Operator::Mod,
+            "&" => Operator::And,
+            "|" => Operator::Or,
+            "<" => Operator::Lt,
+            "<=" => Operator::Le,
+            ">" => Operator::Gt,
+            ">=" => Operator::Ge,
+            "==" => Operator::Eq,
+            "~=" => Operator::Ne,
+            _ => panic!("Unexpected operator"),
+        };
+
+        let prec = precedence(&op_enum);
+        if prec < min_prec {
+            break;
         }
+
+        tokens.next(); // Consume the operator
+
+        // Recursively parse the right-hand side of the expression, considering the next operator's precedence
+        let mut right = parse_expr(tokens, prec + 1);
+
+        left = ASTNode::BinaryOp {
+            left: Box::new(left),
+            op: op_enum,
+            right: Box::new(right),
+        };
     }
 
     left
 }
+
 
 fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Vec<ASTNode> {
     let mut nodes = Vec::new();
@@ -251,7 +236,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                 match tokens.peek() {
                     Some(&Token::Assigner(op)) => {
                         tokens.next(); // Consume the '=' symbol
-                        let value = parse_expr(&mut tokens);
+                        let value = parse_expr(&mut tokens, 0);
                         let kind = match op.as_str() {
                             "=" => AssignmentKind::Assign,
                             "+=" => AssignmentKind::Add,
@@ -279,7 +264,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
 
                         if let Some(&Token::Symbol('=')) = tokens.peek() {
                             tokens.next(); // Consume the '=' symbol
-                            let value = parse_expr(&mut tokens);
+                            let value = parse_expr(&mut tokens, 0);
                             nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(value) });
                         } else {
                             nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(ASTNode::Number(0)) });
@@ -293,7 +278,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
 
                         if let Some(&Token::Symbol('=')) = tokens.peek() {
                             tokens.next(); // Consume the '=' symbol
-                            let value = parse_expr(&mut tokens);
+                            let value = parse_expr(&mut tokens, 0);
                             nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(value) });
                         } else {
                             nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(ASTNode::Number(0)) });
@@ -350,7 +335,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             }
                             tokens.next();
                         }
-                        let condition = parse_expr(&mut condition_tokens.iter().peekable());
+                        let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                         if tokens.next() != Some(&Token::Symbol('{')) {
                             panic!("Expected a code block");
                         }
@@ -376,7 +361,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                                 }
                                                 tokens.next();
                                             }
-                                            let condition = parse_expr(&mut condition_tokens.iter().peekable());
+                                            let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                                             if tokens.next() != Some(&Token::Symbol('{')) {
                                                 panic!("Expected a code block");
                                             }
@@ -409,7 +394,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             }
                             tokens.next();
                         }
-                        let condition = parse_expr(&mut condition_tokens.iter().peekable());
+                        let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                         if tokens.next() != Some(&Token::Symbol('{')) {
                             panic!("Expected a code block");
                         }
