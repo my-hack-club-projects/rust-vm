@@ -89,6 +89,9 @@ pub enum ASTNode {
         condition: Box<ASTNode>,
         body: Vec<ASTNode>,
     },
+    Break {},
+    Continue {},
+    Return { expr: Box<ASTNode> },
 
 
     // TODO: Add more AST nodes
@@ -196,7 +199,7 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_pre
         tokens.next(); // Consume the operator
 
         // Recursively parse the right-hand side of the expression, considering the next operator's precedence
-        let mut right = parse_expr(tokens, prec + 1);
+        let right = parse_expr(tokens, prec + 1);
 
         left = ASTNode::BinaryOp {
             left: Box::new(left),
@@ -417,6 +420,16 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                         let body = parse_body(&mut tokens);
 
                         nodes.push(ASTNode::WhileStatement { condition: Box::new(condition), body });
+                    },
+                    "break" => {
+                        nodes.push(ASTNode::Break {});
+                    },
+                    "continue" => {
+                        nodes.push(ASTNode::Continue {});
+                    },
+                    "return" => {
+                        let expr = parse_expr(&mut tokens, 0);
+                        nodes.push(ASTNode::Return { expr: Box::new(expr) });
                     },
                     _ => {},
                 }

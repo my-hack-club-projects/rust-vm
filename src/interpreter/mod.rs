@@ -94,7 +94,7 @@ impl Interpreter {
             ASTNode::FunctionDeclaration { name, params, body } => {
                 // TODO: Not tested because return not implemented
                 let body_instructions = self.precompile(body);
-                self.vm.declare_function(name, params, body_instructions);
+                self.vm.declare_function(name, params, vec![]);
                 vec![]
             },
             ASTNode::FunctionCall { name, args } => {
@@ -107,7 +107,11 @@ impl Interpreter {
 
                 vec![Instruction::CallFunc(name, arg_indices)]
             },
-            // ASTNode::Return TODO
+            ASTNode::Return { expr } => {
+                let value = self.compute_expr(*expr);
+                self.vm.load_value_into_register(0, value);
+                vec![Instruction::RetFunc(vec![0])]
+            },
 
             ASTNode::IfStatement { condition, body, else_body, else_ifs } => {
                 let condition_value = self.compute_expr(*condition);
@@ -141,6 +145,12 @@ impl Interpreter {
                 }
 
                 vec![]
+            },
+            ASTNode::Break {  } => {
+                vec![Instruction::BreakWhile]
+            },
+            ASTNode::Continue {  } => {
+                vec![Instruction::ContinueWhile]
             },
 
             _ => {
