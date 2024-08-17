@@ -57,7 +57,7 @@ impl Interpreter {
                 let expr = self.compute_expr(*expr);
 
                 match op {
-                    Operator::Not => !expr, // TODO: Check truthiness instead of trying to negate a number
+                    Operator::Not => if self.vm.truthy_check(expr) { DataType::Number(0) } else { DataType::Number(1) },
                     Operator::Neg => -expr,
                     _ => panic!("Unexpected operator"),
                 }
@@ -91,30 +91,56 @@ impl Interpreter {
                 self.vm.load_value_into_register(0, modified_value);
                 vec![Instruction::StoreVar(0, name)]
             },
-            // ASTNode::FunctionDeclaration { name, params, body } => {
-            //     // Functions are pre-compiled into instructions that are executed when the function is called
-            //     // For that, we need to support pre-compilation
-                
-            // },
+            ASTNode::FunctionDeclaration { name, params, body } => {
+                // TODO: Not tested because return not implemented
+                let body_instructions = self.precompile(body);
+                self.vm.declare_function(name, params, body_instructions);
+                vec![]
+            },
+            ASTNode::FunctionCall { name, args } => {
+                let mut arg_indices = vec![];
+                for (i, arg) in args.iter().enumerate() {
+                    let arg_value = self.compute_expr(arg.clone());
+                    self.vm.load_value_into_register(i, arg_value);
+                    arg_indices.push(i);
+                }
 
-            ASTNode::Identifier(name) => { // The behaviour of this will be in the catch-all case and work for any expression
-                let instructions = vec![
-                    Instruction::LoadVar(0, name),
-                    Instruction::Out(0),
-                ];
-                instructions
+                vec![Instruction::CallFunc(name, arg_indices)]
+            },
+            // ASTNode::Return TODO
+
+            ASTNode::IfStatement { condition, body, else_body, else_ifs } => {
+                let condition_value = self.compute_expr(*condition);
+                let is_truthy = self.vm.truthy_check(condition_value);
+
+                if is_truthy {
+                    self.interpret(body);
+                    vec![]
+                } else {
+                    for (condition, body) in else_ifs {
+                        let condition_value = self.compute_expr(*condition);
+                        let is_truthy = self.vm.truthy_check(condition_value);
+
+                        if is_truthy {
+                            self.interpret(body);
+                            return vec![];
+                        }
+                    }
+
+                    self.interpret(else_body);
+                    vec![]
+                }
             },
 
             _ => {
-                println!("{:?}", node);
-                panic!("Not implemented yet");
+                let expr_value = self.compute_expr(node);
+                self.vm.load_value_into_register(0, expr_value);
+                vec![Instruction::Out(0)]
             }
         }
     }
 
     pub fn precompile(&mut self, ast: Vec<ASTNode>) -> Vec<Instruction> {
-        println!("{:?}", ast);
-
         let mut instructions = vec![];
 
         // Convert into instructions

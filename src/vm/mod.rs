@@ -80,6 +80,14 @@ impl VM {
         output
     }
 
+    pub fn truthy_check(&self, value: DataType) -> bool {
+        match value {
+            DataType::Number(n) => n != 0,
+            DataType::Null() => false,
+            _ => true, // This WILL break if we add null
+        }
+    }
+
     pub fn push_scope(&mut self) {
         self.scopes.push(Scope::new(Some(self.scopes.last().unwrap().clone())));
     }

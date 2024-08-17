@@ -2,7 +2,7 @@ use core::panic;
 
 use crate::ast::lexer::Token;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum AssignmentKind {
     Assign,
     Add,
@@ -12,7 +12,7 @@ pub enum AssignmentKind {
     Mod,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Operator {
     Add,
     Sub,
@@ -43,7 +43,7 @@ fn precedence(op: &Operator) -> i32 {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ASTNode {
     Identifier(String), // Variable, function names
     Number(i32), // Integer literals TODO: Add support for floating point numbers

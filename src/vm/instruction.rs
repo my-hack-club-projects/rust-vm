@@ -70,7 +70,7 @@ impl Instruction {
         }
     }
     
-    fn truthy_check(&self, value: DataType) -> bool {
+    pub fn truthy_check(&self, value: DataType) -> bool {
         let truthy = match value {
             DataType::Number(n) => n != 0,
             DataType::Null() => false,
