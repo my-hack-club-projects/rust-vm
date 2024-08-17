@@ -1,5 +1,5 @@
 use crate::vm::{VM, symbol::DataType};
-use crate::ast::parser::{ASTNode, Operator};
+use crate::ast::parser::{ASTNode, Operator, AssignmentKind};
 use crate::vm::instruction::Instruction;
 
 pub struct Interpreter {
@@ -81,6 +81,23 @@ impl Interpreter {
                     } else {
                         instructions.push(Instruction::DeclareVar(0, name))
                     }
+                    self.vm.execute(instructions);
+                },
+                ASTNode::Assignment { name, kind, value } => {
+                    let value = self.compute_expr(*value);
+                    let current_value = self.vm.get_variable(&name).expect("Variable not found");
+                    let modified_value = match kind {
+                        AssignmentKind::Assign => value,
+                        AssignmentKind::Add => current_value + value,
+                        AssignmentKind::Sub => current_value - value,
+                        AssignmentKind::Mul => current_value * value,
+                        AssignmentKind::Div => current_value / value,
+                        AssignmentKind::Mod => current_value % value,
+                    };
+                    self.vm.load_value_into_register(0, modified_value);
+                    let instructions = vec![
+                        Instruction::StoreVar(0, name),
+                    ];
                     self.vm.execute(instructions);
                 },
 

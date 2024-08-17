@@ -6,8 +6,11 @@ fn main() {
     // multiline string
     let code = r#"
     var x = 1 + 2 * 3 / 4 % 5
-    var y = -x
+    mut y = -x
     x y
+
+    y += 1
+    y
     "#;
 
     let ast = ast::parse(code);
