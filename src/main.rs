@@ -5,13 +5,10 @@ mod interpreter;
 fn main() {
     // multiline string
     let code = r#"
-    var x = 7
-    if x == 6 {
-        123
-    } elseif x == 5 {
-        10
-    } else {
-        0
+    mut x = 0
+    while x < 10 {
+        x = x + 1
+        x
     }
     "#;
 

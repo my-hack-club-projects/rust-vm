@@ -131,6 +131,17 @@ impl Interpreter {
                     vec![]
                 }
             },
+            ASTNode::WhileStatement { condition, body } => {
+                while true {
+                    let condition_value = self.compute_expr(*condition.clone());
+                    if !self.vm.truthy_check(condition_value) {
+                        break;
+                    }
+                    self.interpret(body.clone());
+                }
+
+                vec![]
+            },
 
             _ => {
                 let expr_value = self.compute_expr(node);
