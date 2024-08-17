@@ -5,13 +5,18 @@ mod interpreter;
 fn main() {
     // multiline string
     let code = r#"
-    var a = 5
+    fun rec_counter(n) {
+        out n
+        if n < 10 {
+            return rec_counter(n + 1)
+        } else {
+            return n
+        }
 
-    fun f(x, y) {
-        return x + y
     }
 
-    f(5, 10)
+    var x = rec_counter(1);
+    out x
     "#;
 
     let ast = ast::parse(code);

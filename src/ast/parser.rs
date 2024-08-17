@@ -92,6 +92,7 @@ pub enum ASTNode {
     Break {},
     Continue {},
     Return { expr: Box<ASTNode> },
+    Output { expr: Box<ASTNode> },
 
 
     // TODO: Add more AST nodes
@@ -264,16 +265,7 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                         nodes.push(parse_fn_call(name.clone(), &mut tokens));
                     },
                     _ => {
-                        let mut expr_tokens = vec![Token::Identifier(name.clone())];
-                        while let Some(&token) = tokens.peek() {
-                            expr_tokens.push(token.clone());
-                            tokens.next();
-                        }
-                        let result = parse_expr(&mut expr_tokens.iter().peekable(), 0);
-                        for _ in 0..expr_tokens.len() {
-                            tokens.next();
-                        }
-                        nodes.push(result);
+                        panic!("Unexpected token \"{}\"", name);
                     },
                 }
             },
@@ -449,12 +441,18 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                         let expr = parse_expr(&mut tokens, 0);
                         nodes.push(ASTNode::Return { expr: Box::new(expr) });
                     },
+                    "out" => {
+                        let expr = parse_expr(&mut tokens, 0);
+                        nodes.push(ASTNode::Output { expr: Box::new(expr) });
+                    }
                     _ => {},
                 }
             }
             // Token::Number(value) => nodes.push(ASTNode::Number(*value)),
             _ => {
+                println!("Catch-all: {:?}", token);
                 let result = parse_expr(&mut tokens, 0);
+                println!("{:?}", result);
                 nodes.push(result);
             }
         }

@@ -65,21 +65,24 @@ impl VM {
         vm
     }
 
-    pub fn execute(&mut self, program: Vec<instruction::Instruction>) -> Vec<Rc<RefCell<DataType>>> {
+    pub fn execute(&mut self, program: Vec<instruction::Instruction>) -> Option<Vec<Rc<RefCell<DataType>>>> {
         self.running = true;
         self.pc = 0;
         
-        let mut output = Vec::new();
         while self.running && self.pc < program.len() {
             let instruction = &program[self.pc];
             self.pc += 1;
             let result = instruction.execute(self, program.clone());
-
+            // Result is a Vec of the addresses (Rc<RefCell<DataType>>) of the return values
             if let Some(result) = result {
-                output = result;
+                // return Some(result.iter().map(|data| Rc::clone(data).borrow().clone()).collect());
+                // get the value of the result
+                return Some(result);
             }
         }
-        output
+        
+        // output is Vec<Rc<RefCell<DataType>>>
+        return None;
     }
 
     pub fn truthy_check(&self, value: DataType) -> bool {
@@ -232,26 +235,30 @@ impl VM {
     }
 
     pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<ASTNode>) {
+        // Step 1: Create a temporary placeholder in memory
         let function_address_index = self.get_free_address_index();
+        let function_placeholder = self.memory[function_address_index].clone();
+
+        // Step 2: Prepare the function symbol with the placeholder
         let mut function_symbol = Symbol {
             name: name.clone(),
-            address: self.memory[function_address_index].clone(),
+            address: function_placeholder.clone(),
             mutable: false,
         };
+
+        // Step 3: Capture the scope and include the function itself
         let joined_scopes = self.scopes.iter().rev().cloned().fold(Scope::new(None), |mut acc, scope| {
             for (name, symbol) in scope.symbols.iter() {
                 acc.symbols.insert(name.clone(), symbol.clone());
             }
-            acc.symbols.insert(name.clone(), function_symbol.clone()); // Add the function that's being declared
+            acc.symbols.insert(name.clone(), function_symbol.clone()); // Insert the function itself
             acc
         });
 
+        // Step 4: Insert the function into the current scope
         if let Some(current_scope) = self.scopes.last_mut() {
-            let function = DataType::Function(params.clone(), instructions.clone(), joined_scopes);
-            let function_address = Rc::new(RefCell::new(function));
-            self.memory[function_address_index] = function_address.clone(); // This increments the reference count
-            
-            function_symbol.address = function_address;
+            let function = DataType::Function(params, instructions, joined_scopes);
+            *function_placeholder.borrow_mut() = function; // Update the placeholder with the actual function
             current_scope.symbols.insert(name, function_symbol);
         }
     }

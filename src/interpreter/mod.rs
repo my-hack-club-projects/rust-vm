@@ -74,7 +74,7 @@ impl Interpreter {
 
                 let old_scopes = self.vm.scopes.clone();
                 let old_pc = self.vm.pc;
-
+                // println!("Scope: {:?}", scope);
                 self.vm.scopes = vec![scope];
                 self.vm.pc = 0;
 
@@ -84,26 +84,33 @@ impl Interpreter {
 
                 // interpret the function body
                 let result = self.interpret(body.clone());
-
+                // println!("Result: {:?}", result); // 
                 self.vm.scopes = old_scopes;
                 self.vm.pc = old_pc;
 
-                result[0].clone()
+                if let Some(value) = result {
+                    value[0].clone()
+                } else {
+                    // println!("Function {:?} returned None", name);
+                    DataType::Null()
+                }
             },
             _ => panic!("Expression {:?} not implemented yet", expr),
         }
     }
 
-    fn match_node(&mut self, node: ASTNode) -> Vec<Instruction> {
+    fn match_node(&mut self, node: ASTNode) -> Option<Vec<DataType>> {
         match node {
             ASTNode::VariableDeclaration { mutable, name, value } => {
                 let value = self.compute_expr(*value);
-                self.vm.load_value_into_register(0, value);
-                if mutable {
-                    vec![Instruction::DeclareMutVar(0, name)]
-                } else {
-                    vec![Instruction::DeclareVar(0, name)]
-                }
+                // self.vm.load_value_into_register(0, value);
+                // if mutable {
+                //     vec![Instruction::DeclareMutVar(0, name)]
+                // } else {
+                //     vec![Instruction::DeclareVar(0, name)]
+                // }
+                self.vm.declare_variable(name, value, mutable);
+                None
             },
             ASTNode::Assignment { name, kind, value } => {
                 let value = self.compute_expr(*value);
@@ -116,17 +123,21 @@ impl Interpreter {
                     AssignmentKind::Div => current_value / value,
                     AssignmentKind::Mod => current_value % value,
                 };
-                self.vm.load_value_into_register(0, modified_value);
-                vec![Instruction::StoreVar(0, name)]
+                // self.vm.load_value_into_register(0, modified_value);
+                // vec![Instruction::StoreVar(0, name)]
+                let address = self.vm.get_or_add_to_memory(modified_value);
+                self.vm.set_variable_address(&name, address);
+                None
             },
             ASTNode::FunctionDeclaration { name, params, body } => {
                 self.vm.declare_function(name, params, body);
-                vec![]
+                None
             },
             ASTNode::Return { expr } => {
                 let value = self.compute_expr(*expr);
-                self.vm.load_value_into_register(0, value);
-                vec![Instruction::RetFunc(vec![0])]
+                // self.vm.load_value_into_register(0, value);
+                // vec![Instruction::RetFunc(vec![0])]
+                Some(vec![value])
             },
 
             ASTNode::IfStatement { condition, body, else_body, else_ifs } => {
@@ -134,72 +145,94 @@ impl Interpreter {
                 let is_truthy = self.vm.truthy_check(condition_value);
 
                 if is_truthy {
-                    self.interpret(body);
-                    vec![]
+                    return self.interpret(body);
                 } else {
                     for (condition, body) in else_ifs {
                         let condition_value = self.compute_expr(*condition);
                         let is_truthy = self.vm.truthy_check(condition_value);
 
                         if is_truthy {
-                            self.interpret(body);
-                            return vec![];
+                            return self.interpret(body);
                         }
                     }
 
-                    self.interpret(else_body);
-                    vec![]
+                    return self.interpret(else_body);
                 }
             },
             ASTNode::WhileStatement { condition, body } => {
+                let mut output = None;
                 loop {
                     let condition_value = self.compute_expr(*condition.clone());
                     if !self.vm.truthy_check(condition_value) {
                         break;
                     }
-                    self.interpret(body.clone());
-                }
+                    let result = self.interpret(body.clone());
+                    if let Some(value) = result {
+                        output = Some(value);
+                    }
+                };
 
-                vec![]
+                if let Some(value) = output {
+                    return Some(value);
+                } else {
+                    return None;
+                }
             },
             ASTNode::Break {  } => {
-                vec![Instruction::BreakWhile]
+                // vec![Instruction::BreakWhile]
+                None // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
             },
             ASTNode::Continue {  } => {
-                vec![Instruction::ContinueWhile]
+                // vec![Instruction::ContinueWhile]
+                None // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
             },
 
-            _ => {
-                let expr_value = self.compute_expr(node);
-                self.vm.load_value_into_register(0, expr_value);
-                vec![Instruction::Out(0)]
+            ASTNode::Output { expr } => {
+                let expr_value = self.compute_expr(*expr);
+                // self.vm.load_value_into_register(0, expr_value);
+                // vec![Instruction::Out(0)]
+                println!("{}", expr_value);
+                None
             }
-        }
-    }
-
-    pub fn precompile(&mut self, ast: Vec<ASTNode>) -> Vec<Instruction> {
-        let mut instructions = vec![];
-
-        // Convert into instructions
-        for node in ast {
-            let node_instructions = self.match_node(node);
-            instructions.extend(node_instructions);
-        }
-        
-        instructions
-    }
-
-    pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Vec<DataType> {
-        for node in ast {
-            let instructions = self.match_node(node);
-            let result = self.vm.execute(instructions);
-            let result: Vec<DataType> = result.into_iter().map(|r| r.borrow().clone()).collect();
             
-            if !result.is_empty() && !result[0].is_null() {
-                return result;
+            _ => {
+                panic!("Invalid node: {:?}", node);
             }
         }
+    }
 
-        vec![DataType::Null()]
+    // pub fn precompile(&mut self, ast: Vec<ASTNode>) -> Vec<Instruction> {
+    //     let mut instructions = vec![];
+
+    //     // Convert into instructions
+    //     for node in ast {
+    //         let node_instructions = self.match_node(node);
+    //         instructions.extend(node_instructions);
+    //     }
+        
+    //     instructions
+    // }
+
+    pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Option<Vec<DataType>> {
+        let mut output = None;
+        // println!("Interpret AST: {:?}", ast);
+
+        for node in ast {
+            let result = self.match_node(node);
+            // let result = self.vm.execute(instructions);
+            
+            if let Some(value) = result {
+                // println!("Interpret result: {:?}", value);
+                // value is Vec<Rc<RefCell<DataType>>>
+                // We need to clone the values inside the Rc<RefCell<DataType>> to get the actual DataType
+                // let converted = value.iter().map(|v| v.borrow().clone()).collect();
+                // println!("Converted: {:?}", converted);
+                // output = Some(converted);
+
+                output = Some(value);
+            }
+        }
+        // println!("Interpret Output: {:?}", output);
+        output
     }
 }
