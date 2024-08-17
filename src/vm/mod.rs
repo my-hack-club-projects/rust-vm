@@ -64,6 +64,9 @@ impl VM {
     }
 
     pub fn execute(&mut self, program: Vec<instruction::Instruction>) -> Vec<Rc<RefCell<DataType>>> {
+        self.running = true;
+        self.pc = 0;
+        
         let mut output = Vec::new();
         while self.running && self.pc < program.len() {
             let instruction = &program[self.pc];
@@ -119,6 +122,16 @@ impl VM {
         } else {
             self.add_to_memory(data)
         }
+    }
+
+    pub fn load_value_into_register(&mut self, register: usize, value: DataType) {
+        // if let Some(registers) = &mut self.registers {
+        //     // registers[register].address = self.get_or_add_to_memory(value); // Two mutable borrows!
+        // } else {
+        //     panic!("Registers not initialized.");
+        // }
+
+        self.registers.as_mut().unwrap()[register].address = self.get_or_add_to_memory(value);
     }
 
     pub fn get_register_value(&self, register: usize) -> DataType {

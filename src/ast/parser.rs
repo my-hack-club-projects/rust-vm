@@ -1,7 +1,9 @@
+use core::panic;
+
 use crate::ast::lexer::Token;
 
 #[derive(Debug)]
-enum AssignmentKind {
+pub enum AssignmentKind {
     Assign,
     Add,
     Sub,
@@ -11,7 +13,7 @@ enum AssignmentKind {
 }
 
 #[derive(Debug)]
-enum Operator {
+pub enum Operator {
     Add,
     Sub,
     Mul,
@@ -262,12 +264,19 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             _ => panic!("Expected an identifier"),
                         };
 
-                        if let Some(&Token::Symbol('=')) = tokens.peek() {
-                            tokens.next(); // Consume the '=' symbol
-                            let value = parse_expr(&mut tokens, 0);
-                            nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(value) });
-                        } else {
-                            nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(ASTNode::Number(0)) });
+                        match tokens.peek() {
+                            Some(&Token::Assigner(op)) => {
+                                if op.as_str() == "=" {
+                                    tokens.next(); // Consume the '=' symbol
+                                    let value = parse_expr(&mut tokens, 0);
+                                    nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(value) });
+                                } else {
+                                    panic!("Unexpected assignment operator during variable declaration");
+                                }
+                            },
+                            _ => {
+                                nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(ASTNode::Number(0)) });
+                            },
                         }
                     },
                     "mut" => {
@@ -275,13 +284,20 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             Some(Token::Identifier(name)) => name.clone(),
                             _ => panic!("Expected an identifier"),
                         };
-
-                        if let Some(&Token::Symbol('=')) = tokens.peek() {
-                            tokens.next(); // Consume the '=' symbol
-                            let value = parse_expr(&mut tokens, 0);
-                            nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(value) });
-                        } else {
-                            nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(ASTNode::Number(0)) });
+                        
+                        match tokens.peek() {
+                            Some(&Token::Assigner(op)) => {
+                                if op.as_str() == "=" {
+                                    tokens.next(); // Consume the '=' symbol
+                                    let value = parse_expr(&mut tokens, 0);
+                                    nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(value) });
+                                } else {
+                                    panic!("Unexpected assignment operator during variable declaration");
+                                }
+                            },
+                            _ => {
+                                panic!("Expected an assignment operator during variable declaration");
+                            },
                         }
                     },
                     "fun" => {

@@ -38,11 +38,153 @@ impl Register {
     
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum DataType {
     Number(i32),
     Function(Vec<String>, Vec<Instruction>, Scope),
     Null(),
+}
+
+impl std::ops::Add for DataType {
+    type Output = DataType;
+
+    fn add(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a + b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::Sub for DataType {
+    type Output = DataType;
+
+    fn sub(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a - b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::Mul for DataType {
+    type Output = DataType;
+
+    fn mul(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a * b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::Div for DataType {
+    type Output = DataType;
+
+    fn div(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a / b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::Rem for DataType {
+    type Output = DataType;
+
+    fn rem(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a % b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::Not for DataType {
+    type Output = DataType;
+
+    fn not(self) -> DataType {
+        match self {
+            DataType::Number(n) => DataType::Number(!n),
+            _ => panic!("Expected number"),
+        }
+    }
+}
+
+impl std::ops::BitAnd for DataType {
+    type Output = DataType;
+
+    fn bitand(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a & b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::BitOr for DataType {
+    type Output = DataType;
+
+    fn bitor(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a | b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::ops::BitXor for DataType {
+    type Output = DataType;
+
+    fn bitxor(self, other: DataType) -> DataType {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => DataType::Number(a ^ b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::cmp::PartialEq for DataType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => a == b,
+            (DataType::Function(_, _, _), DataType::Function(_, _, _)) => false,
+            (DataType::Null(), DataType::Null()) => true,
+            _ => false,
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for DataType {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => a.partial_cmp(b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+impl std::cmp::Eq for DataType {}
+
+impl std::cmp::Ord for DataType {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (DataType::Number(a), DataType::Number(b)) => a.cmp(b),
+            _ => panic!("Expected numbers"),
+        }
+    }
+}
+
+// neg
+impl std::ops::Neg for DataType {
+    type Output = DataType;
+
+    fn neg(self) -> DataType {
+        match self {
+            DataType::Number(n) => DataType::Number(-n),
+            _ => panic!("Expected number"),
+        }
+    }
 }
 
 impl DataType {
@@ -52,6 +194,14 @@ impl DataType {
     #[must_use]
     pub fn is_null(&self) -> bool {
         matches!(self, Self::Null(..))
+    }
+
+    /// Returns `true` if the data type is [`Number`].
+    ///
+    /// [`Number`]: DataType::Number
+    #[must_use]
+    pub fn is_number(&self) -> bool {
+        matches!(self, Self::Number(..))
     }
 }
 

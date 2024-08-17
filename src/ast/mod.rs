@@ -1,8 +1,7 @@
 mod lexer;
-mod parser;
+pub mod parser;
 
 pub fn parse(input: &str) -> Vec<parser::ASTNode>{
     let tokens = lexer::tokenize(input);
-    println!("{:?}", tokens);
     parser::parse(tokens)
 }

@@ -101,7 +101,7 @@ impl Instruction {
             Instruction::MemDump => {
                 // println!("{:?}", vm.memory); // Need to print reference counts
                 for (i, v) in vm.memory.iter().enumerate() {
-                    println!("mem[{}]: {:?}", i, Rc::strong_count(v));
+                    println!("mem[{}]: (value: {}, refcount: {:?})", i, v.borrow(), Rc::strong_count(v));
                 }
                 None
             },
