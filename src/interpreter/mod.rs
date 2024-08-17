@@ -214,9 +214,6 @@ impl Interpreter {
     // }
 
     pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Option<Vec<DataType>> {
-        let mut output = None;
-        // println!("Interpret AST: {:?}", ast);
-
         for node in ast {
             let result = self.match_node(node);
             // let result = self.vm.execute(instructions);
@@ -229,10 +226,10 @@ impl Interpreter {
                 // println!("Converted: {:?}", converted);
                 // output = Some(converted);
 
-                output = Some(value);
+                return Some(value);
             }
         }
         // println!("Interpret Output: {:?}", output);
-        output
+        None
     }
 }

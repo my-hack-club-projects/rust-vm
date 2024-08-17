@@ -34,7 +34,7 @@ pub struct VM {
     pub scopes: Vec<Scope>,
 }
 
-const MEM_SIZE: usize = 32; //1024;
+const MEM_SIZE: usize = 1024;
 
 impl VM {
     pub fn new() -> Self {

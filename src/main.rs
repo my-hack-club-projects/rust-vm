@@ -5,18 +5,20 @@ mod interpreter;
 fn main() {
     // multiline string
     let code = r#"
-    fun rec_counter(n) {
-        out n
-        if n < 10 {
-            return rec_counter(n + 1)
-        } else {
+    var nterms = 30
+    fun recursive_fibonacci(n) {
+        if n <= 1 {
             return n
         }
-
+        return recursive_fibonacci(n - 1) + recursive_fibonacci(n - 2)
     }
 
-    var x = rec_counter(1);
-    out x
+    mut i = 0
+    while i < nterms {
+        out recursive_fibonacci(i)
+        i += 1
+    }
+
     "#;
 
     let ast = ast::parse(code);
