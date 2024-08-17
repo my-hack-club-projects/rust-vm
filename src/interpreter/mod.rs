@@ -132,7 +132,7 @@ impl Interpreter {
                 }
             },
             ASTNode::WhileStatement { condition, body } => {
-                while true {
+                loop {
                     let condition_value = self.compute_expr(*condition.clone());
                     if !self.vm.truthy_check(condition_value) {
                         break;
