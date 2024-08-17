@@ -263,22 +263,13 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                     Some(&Token::Symbol('(')) => {
                         nodes.push(parse_fn_call(name.clone(), &mut tokens));
                     },
-                    // _ => nodes.push(ASTNode::Identifier(name.clone())),
-                    // Instead of pushing the identifier directly, parse the next tokens as an expression
                     _ => {
-                        // let result = parse_expr(&mut tokens, 0);
-                        // The above would work, but since the current token already is an identifier, the parse_expr doesn't see it
-                        // We need to include the current token in the expression
-                        // Example: a + 5
-                        // The parse_expr would see '+', '5', 'a' is skipped, as it runs the tokens.next() in the beginning
                         let mut expr_tokens = vec![Token::Identifier(name.clone())];
-                        // expr_tokens.extend(tokens.clone()); // can't pass the peekable into 'extend'
                         while let Some(&token) = tokens.peek() {
                             expr_tokens.push(token.clone());
                             tokens.next();
                         }
                         let result = parse_expr(&mut expr_tokens.iter().peekable(), 0);
-                        // We need to consume the tokens that were used in the expression
                         for _ in 0..expr_tokens.len() {
                             tokens.next();
                         }
