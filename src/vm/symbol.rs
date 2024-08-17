@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::cell::{Ref, RefCell};
 use std::fmt;
 
+use crate::ast::parser::ASTNode;
 use crate::vm::instruction::Instruction;
 
 // This programming language is supposed to be number-only. There are no datatypes like strings or booleans.
@@ -41,7 +42,7 @@ impl Register {
 #[derive(Clone, Debug)]
 pub enum DataType {
     Number(i32),
-    Function(Vec<String>, Vec<Instruction>, Scope),
+    Function(Vec<String>, Vec<ASTNode>, Scope),
     Null(),
 }
 

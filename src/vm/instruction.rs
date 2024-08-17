@@ -39,8 +39,8 @@ pub enum Instruction {
     LoadVar(usize, String),    // LOADVAR "var_name"
     StoreVar(usize, String),   // STOREVAR "var_name"
 
-    DeclareFunc(String, Vec<String>, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
-    CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args as register indices]
+    // DeclareFunc(String, Vec<String>, Vec<Instruction>), // DECLAREFUNC "func_name", num_args, [instructions]
+    // CallFunc(String, Vec<usize>), // CALLFUNC "func_name", [args as register indices]
     RetFunc(Vec<usize>), // RETFUNC
 
     If(usize, Vec<Instruction>), // IF R1, [instructions]
@@ -157,15 +157,15 @@ impl Instruction {
                 None
             },
 
-            Instruction::DeclareFunc(func_name, params, instructions) => {
-                vm.declare_function(func_name.clone(), params.clone(), instructions.clone());
-                None
-            },
+            // Instruction::DeclareFunc(func_name, params, instructions) => {
+            //     vm.declare_function(func_name.clone(), params.clone(), instructions.clone());
+            //     None
+            // },
 
-            Instruction::CallFunc(func_name, args) => {
-                vm.call_function(func_name, args.to_vec());
-                None
-            },
+            // Instruction::CallFunc(func_name, args) => {
+            //     vm.call_function(func_name, args.to_vec());
+            //     None
+            // },
 
             Instruction::RetFunc(register_indices) => {
                 let return_addresses = register_indices.iter().map(|i| vm.registers.as_ref().unwrap()[*i].address.clone()).collect::<Vec<Rc<RefCell<DataType>>>>();

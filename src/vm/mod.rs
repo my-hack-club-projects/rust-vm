@@ -2,6 +2,8 @@ use core::panic;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+use crate::ast::parser::ASTNode;
+
 pub mod instruction;
 pub mod symbol;
 
@@ -229,9 +231,9 @@ impl VM {
         panic!("Error: Variable '{}' not found.", name);
     }
 
-    pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<instruction::Instruction>) {
+    pub fn declare_function(&mut self, name: String, params: Vec<String>, instructions: Vec<ASTNode>) {
         let function_address_index = self.get_free_address_index();
-        let function_symbol = Symbol {
+        let mut function_symbol = Symbol {
             name: name.clone(),
             address: self.memory[function_address_index].clone(),
             mutable: false,
@@ -249,51 +251,65 @@ impl VM {
             let function_address = Rc::new(RefCell::new(function));
             self.memory[function_address_index] = function_address.clone(); // This increments the reference count
             
+            function_symbol.address = function_address;
             current_scope.symbols.insert(name, function_symbol);
         }
     }
 
-    pub fn call_function(&mut self, name: &str, args_indices: Vec<usize>) {
-        // Find the function definition immutably (use self.get_variable)
-        let (params, instructions, captured_scope) = {
-            let function = self.get_variable(name).unwrap();
-            if let DataType::Function(params, instructions, captured_scope) = function {
+    pub fn get_function(&self, name: &str) -> (Vec<String>, Vec<ASTNode>, Scope) {
+        if let Some(symbol) = self.get_variable_base(name) {
+            if let DataType::Function(params, instructions, captured_scope) = Rc::clone(&symbol.address).borrow().clone() {
                 (params, instructions, captured_scope)
             } else {
-                panic!("Error: '{}' is not a function.", name);
+                // panic!("Error: '{}' is not a function.", name);
+                panic!("Expected function, got: {:?}", Rc::clone(&symbol.address).borrow().clone());
             }
-        };
-    
-        // Check the number of arguments
-        if args_indices.len() != params.len() {
-            panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args_indices.len());
-        }
-    
-        // Get the addresses of the arguments
-        let addresses = args_indices.iter().map(|&i| self.get_register_address(i)).collect::<Vec<Rc<RefCell<DataType>>>>();
-
-        // Mutable operations
-        let old_scopes = self.scopes.clone();
-        let return_address = self.pc;
-
-        self.scopes = vec![captured_scope];
-        self.pc = 0;
-    
-        // Declare the parameter variables with the values
-        for (param, address) in params.iter().zip(addresses.iter()) {
-            self.declare_variable_from_memory(param.clone(), address.clone(), false);
-        }
-
-        // Execute the function
-        let return_addresses = self.execute(instructions);
-
-        // Restore the previous state
-        self.pc = return_address;
-        self.scopes = old_scopes;
-
-        // Set the return values to the registers
-        for (i, value) in return_addresses.iter().enumerate() {
-            self.registers.as_mut().unwrap()[i].address = value.clone();
+        } else {
+            panic!("Error: Function '{}' not found.", name);
         }
     }
+
+    // pub fn call_function(&mut self, name: &str, args_indices: Vec<usize>) {
+    //     // Find the function definition immutably (use self.get_variable)
+    //     let (params, instructions, captured_scope) = {
+    //         let function = self.get_variable(name).unwrap();
+    //         if let DataType::Function(params, instructions, captured_scope) = function {
+    //             (params, instructions, captured_scope)
+    //         } else {
+    //             panic!("Error: '{}' is not a function.", name);
+    //         }
+    //     };
+    
+    //     // Check the number of arguments
+    //     if args_indices.len() != params.len() {
+    //         panic!("Error: Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args_indices.len());
+    //     }
+    
+    //     // Get the addresses of the arguments
+    //     let addresses = args_indices.iter().map(|&i| self.get_register_address(i)).collect::<Vec<Rc<RefCell<DataType>>>>();
+
+    //     // Mutable operations
+    //     let old_scopes = self.scopes.clone();
+    //     let return_address = self.pc;
+
+    //     self.scopes = vec![captured_scope];
+    //     self.pc = 0;
+    
+    //     // Declare the parameter variables with the values
+    //     for (param, address) in params.iter().zip(addresses.iter()) {
+    //         self.declare_variable_from_memory(param.clone(), address.clone(), false);
+    //     }
+
+    //     // Execute the function
+    //     let return_addresses = self.execute(instructions);
+
+    //     // Restore the previous state
+    //     self.pc = return_address;
+    //     self.scopes = old_scopes;
+
+    //     // Set the return values to the registers
+    //     for (i, value) in return_addresses.iter().enumerate() {
+    //         self.registers.as_mut().unwrap()[i].address = value.clone();
+    //     }
+    // }
 }

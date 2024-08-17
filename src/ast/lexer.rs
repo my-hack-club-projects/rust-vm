@@ -83,6 +83,38 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                 tokens.push(Token::Symbol(ch));
                 chars.next();
             },
+            // Ignore semicolons. This can cause issues if we add some functionality to them
+            // other than line endings.
+            ';' => {
+                chars.next();
+            },
+            // Comments ([[]] for multiline comments)
+            '#' => {
+                // If the next two characters are '[[' then it's a multiline comment
+                if chars.clone().skip(1).next() == Some('[') {
+                    // Skip the '#' and the first '['
+                    chars.next();
+                    chars.next();
+                    // Skip the rest of the comment
+                    while let Some(ch) = chars.next() {
+                        if ch == ']' {
+                            if chars.clone().next() == Some(']') {
+                                // Skip the last ']'
+                                chars.next();
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Skip the rest of the line
+                    while let Some(ch) = chars.next() {
+                        if ch == '\n' {
+                            break;
+                        }
+                    }
+                }
+            },
+
             // Unrecognized characters
             _ => panic!("Unexpected character: {}", ch),
         }

@@ -62,6 +62,34 @@ impl Interpreter {
                     _ => panic!("Unexpected operator"),
                 }
             },
+            ASTNode::FunctionCall { name, args } => {
+                let mut arg_indices = vec![];
+                for (i, arg) in args.iter().enumerate() {
+                    let arg_value = self.compute_expr(arg.clone());
+                    self.vm.load_value_into_register(i, arg_value);
+                    arg_indices.push(i);
+                }
+                
+                let (params, body, scope) = self.vm.get_function(&name);
+
+                let old_scopes = self.vm.scopes.clone();
+                let old_pc = self.vm.pc;
+
+                self.vm.scopes = vec![scope];
+                self.vm.pc = 0;
+
+                for (i, param) in params.iter().enumerate() {
+                    self.vm.declare_variable(param.clone(), self.vm.get_register_value(i), false);
+                }
+
+                // interpret the function body
+                let result = self.interpret(body.clone());
+
+                self.vm.scopes = old_scopes;
+                self.vm.pc = old_pc;
+
+                result[0].clone()
+            },
             _ => panic!("Expression {:?} not implemented yet", expr),
         }
     }
@@ -93,20 +121,38 @@ impl Interpreter {
             },
             ASTNode::FunctionDeclaration { name, params, body } => {
                 // TODO: Not tested because return not implemented
-                let body_instructions = self.precompile(body);
-                self.vm.declare_function(name, params, vec![]);
+                // let body_instructions = self.precompile(body);
+                self.vm.declare_function(name, params, body);
                 vec![]
             },
-            ASTNode::FunctionCall { name, args } => {
-                let mut arg_indices = vec![];
-                for (i, arg) in args.iter().enumerate() {
-                    let arg_value = self.compute_expr(arg.clone());
-                    self.vm.load_value_into_register(i, arg_value);
-                    arg_indices.push(i);
-                }
+            // ASTNode::FunctionCall { name, args } => {
+            //     let mut arg_indices = vec![];
+            //     for (i, arg) in args.iter().enumerate() {
+            //         let arg_value = self.compute_expr(arg.clone());
+            //         self.vm.load_value_into_register(i, arg_value);
+            //         arg_indices.push(i);
+            //     }
+                
+            //     let (params, body, scope) = self.vm.get_function(&name);
 
-                vec![Instruction::CallFunc(name, arg_indices)]
-            },
+            //     let old_scopes = self.vm.scopes.clone();
+            //     let old_pc = self.vm.pc;
+
+            //     self.vm.scopes = vec![scope];
+            //     self.vm.pc = 0;
+
+            //     for (i, param) in params.iter().enumerate() {
+            //         self.vm.declare_variable(param.clone(), self.vm.get_register_value(i), false);
+            //     }
+
+            //     // interpret the function body
+            //     self.interpret(body.clone());
+
+            //     self.vm.scopes = old_scopes;
+            //     self.vm.pc = old_pc;
+
+            //     vec![]
+            // },
             ASTNode::Return { expr } => {
                 let value = self.compute_expr(*expr);
                 self.vm.load_value_into_register(0, value);
@@ -173,10 +219,19 @@ impl Interpreter {
         instructions
     }
 
-    pub fn interpret(&mut self, ast: Vec<ASTNode>) {
+    pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Vec<DataType> {
         for node in ast {
             let instructions = self.match_node(node);
-            self.vm.execute(instructions);
+            let result = self.vm.execute(instructions);
+            // Vec<Rc<RefCell<DataType>>> -> Vec<DataType>
+            let result: Vec<DataType> = result.into_iter().map(|r| r.borrow().clone()).collect();
+            
+            // only return result if it's not null
+            if !result.is_empty() && !result[0].is_null() {
+                return result;
+            }
         }
+
+        vec![DataType::Null()]
     }
 }
