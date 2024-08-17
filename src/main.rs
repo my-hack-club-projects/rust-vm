@@ -5,13 +5,13 @@ mod interpreter;
 fn main() {
     // multiline string
     let code = r#"
-    1 # This is a comment
-    2 + 2 #[[
-    This is a multiline comment
-    ]]
-
     var a = 5
-    a + 5
+
+    fun f(x, y) {
+        return x + y
+    }
+
+    f(5, 10)
     "#;
 
     let ast = ast::parse(code);
