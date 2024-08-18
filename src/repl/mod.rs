@@ -16,10 +16,15 @@ pub fn start() {
         let ast = crate::ast::parse(input);
         match ast {
             Ok(ast) => {
-                interpreter.interpret(ast);
+                match interpreter.interpret(ast) {
+                    Ok(_) => {},
+                    Err(e) => {
+                        eprintln!("Runtime error: {}", e);
+                    }
+                }
             },
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("Parse error: {}", e);
             }
         }
     }
