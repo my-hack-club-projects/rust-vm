@@ -1,6 +1,5 @@
 use crate::vm::{VM, symbol::DataType};
 use crate::ast::parser::{ASTNode, Operator, AssignmentKind};
-use crate::vm::instruction::Instruction;
 
 pub struct Interpreter {
     vm: VM,
@@ -17,11 +16,26 @@ impl Interpreter {
         match expr {
             ASTNode::Number(value) => Ok(DataType::Number(value)),
             ASTNode::Identifier(name) => {
-                let instructions = vec![
-                    Instruction::LoadVar(0, name),
-                ];
-                self.vm.execute(instructions);
-                Ok(self.vm.get_register_value(0))
+                // let instructions = vec![
+                //     Instruction::LoadVar(0, name),
+                // ];
+                // self.vm.execute(instructions);
+                // Ok(self.vm.get_register_value(0))
+
+                let result = self.vm.get_variable(&name);
+                // match result {
+                //     Some(value) => Ok(value),
+                //     None => Err(format!("Variable {:?} not found", name)),
+                // }
+
+                // result is Result<Option<DataType>, String>
+                match result {
+                    Ok(value) => match value {
+                        Some(value) => Ok(value),
+                        None => Err(format!("Variable {:?} not found", name)),
+                    },
+                    Err(e) => Err(e),       
+                }
             },
             ASTNode::BinaryOp { left, op, right } => {
                 let left_result = self.compute_expr(*left);
@@ -38,7 +52,8 @@ impl Interpreter {
                 
                 // Only add numbers
                 if !left.is_number() || !right.is_number() {
-                    panic!("Expected numbers, got {:?} and {:?}", left, right);
+                    // panic!("Expected numbers, got {:?} and {:?}", left, right);
+                    return Err(format!("Expected numbers, got {:?} and {:?}", left, right));
                 }
 
                 let result = match op {
@@ -82,14 +97,24 @@ impl Interpreter {
                     let arg_value = self.compute_expr(arg.clone());
                     match arg_value {
                         Ok(value) => {
-                            self.vm.load_value_into_register(i, value);
-                            arg_indices.push(i);
+                            // self.vm.load_value_into_register(i, value);
+                            // arg_indices.push(i);
+                            match self.vm.get_or_add_to_memory(value) {
+                                Ok(_) => arg_indices.push(i),
+                                Err(e) => return Err(e),
+                            }
                         }
                         Err(e) => return Err(e),
                     }
                 }
                 
-                let (params, body, scope) = self.vm.get_function(&name);
+                // let (params, body, scope) = self.vm.get_function(&name);
+                // get_function returns a Result<(Vec<String>, Vec<ASTNode>, Vec<DataType>), String>
+                let function = self.vm.get_function(&name);
+                let (params, body, scope) = match function {
+                    Ok(value) => value,
+                    Err(e) => return Err(e),
+                };
 
                 let old_scopes = self.vm.scopes.clone();
                 let old_pc = self.vm.pc;
@@ -98,7 +123,18 @@ impl Interpreter {
                 self.vm.pc = 0;
 
                 for (i, param) in params.iter().enumerate() {
-                    self.vm.declare_variable(param.clone(), self.vm.get_register_value(i), false);
+                    let value = self.vm.get_register_value(i);
+                    match value {
+                        Ok(value) => {
+                            // self.vm.declare_variable(param.clone(), value, false);
+                            match self.vm.declare_variable(param.clone(), value, false) {
+                                Ok(_) => {},
+                                Err(e) => return Err(e),
+                            }
+                        },
+                        Err(e) => return Err(e),
+                    }
+                    // self.vm.declare_variable(param.clone(), self.vm.get_register_value(i), false);
                 }
 
                 // interpret the function body
@@ -135,11 +171,14 @@ impl Interpreter {
                 // }
                 match value {
                     Ok(value) => {
-                        self.vm.declare_variable(name, value, mutable);
+                        // self.vm.declare_variable(name, value, mutable);
+                        match self.vm.declare_variable(name, value, mutable) {
+                            Ok(_) => return Ok(None),
+                            Err(e) => return Err(e),
+                        }
                     },
                     Err(e) => return Err(e),
                 }
-                Ok(None)
             },
             ASTNode::Assignment { name, kind, value } => {
                 let value_result = self.compute_expr(*value);
@@ -147,7 +186,14 @@ impl Interpreter {
                     Ok(value) => value,
                     Err(e) => return Err(e),
                 };
-                let current_value = self.vm.get_variable(&name).expect("Variable not found");
+                let current_value = self.vm.get_variable(&name);
+                let current_value = match current_value {
+                    Ok(value) => match value {
+                        Some(value) => value,
+                        None => return Err(format!("Variable {:?} not found", name)),
+                    },
+                    Err(e) => return Err(e),
+                };
                 let modified_value = match kind {
                     AssignmentKind::Assign => value,
                     AssignmentKind::Add => current_value + value,
@@ -159,12 +205,24 @@ impl Interpreter {
                 // self.vm.load_value_into_register(0, modified_value);
                 // vec![Instruction::StoreVar(0, name)]
                 let address = self.vm.get_or_add_to_memory(modified_value);
-                self.vm.set_variable_address(&name, address);
-                Ok(None)
+                // self.vm.set_variable_address(&name, address);
+                // Ok(None)
+                match address {
+                    Ok(address) => {
+                        match self.vm.set_variable_address(&name, address) {
+                            Ok(_) => Ok(None),
+                            Err(e) => Err(e),
+                        }
+                    },
+                    Err(e) => Err(e),
+                }
             },
             ASTNode::FunctionDeclaration { name, params, body } => {
-                self.vm.declare_function(name, params, body);
-                Ok(None)
+                // self.vm.declare_function(name, params, body);
+                match self.vm.declare_function(name, params, body) {
+                    Ok(_) => Ok(None),
+                    Err(e) => Err(e),
+                }
             },
             ASTNode::Return { expr } => {
                 let value = self.compute_expr(*expr);
