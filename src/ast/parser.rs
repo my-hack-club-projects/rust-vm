@@ -98,27 +98,45 @@ pub enum ASTNode {
     // TODO: Add more AST nodes
 }
 
-fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
+fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<ASTNode, String> {
     tokens.next(); // Consume the '(' symbol
     let mut args = Vec::new();
     let mut level = 1;
     let mut current_expr = Vec::new();
     while let Some(token) = tokens.next() {
-        fn push_expr(expr: &mut Vec<Token>, nodes: &mut Vec<ASTNode>) {
+        fn push_expr(expr: &mut Vec<Token>, nodes: &mut Vec<ASTNode>) -> Result<(), String> {
             if !expr.is_empty() {
-                nodes.push(parse_expr(&mut expr.iter().peekable(), 0));
+                // nodes.push(parse_expr(&mut expr.iter().peekable(), 0));
+                // handle error with parse_expr, if theres an error, return the error
+                match parse_expr(&mut expr.iter().peekable(), 0) {
+                    Ok(node) => {
+                        nodes.push(node);
+                        return Ok(())
+                    }
+                    Err(err) => return Err(err),
+                }
+            } else {
+                return Err("Expected expression".to_string());
             }
         }
         match token {
             Token::Symbol('(') => level += 1,
             Token::Symbol(')') => {
                 if level == 1 {
-                    push_expr(&mut current_expr, &mut args);
+                    // push_expr(&mut current_expr, &mut args);
+                    match push_expr(&mut current_expr, &mut args) {
+                        Ok(_) => {},
+                        Err(err) => return Err(err),
+                    }
                 }
                 level -= 1;
             }
             Token::Symbol(',') => {
-                push_expr(&mut current_expr, &mut args);
+                // push_expr(&mut current_expr, &mut args);
+                match push_expr(&mut current_expr, &mut args) {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                }
                 current_expr = Vec::new();
             },
             _ => {
@@ -130,10 +148,11 @@ fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter
         }
     }
 
-    ASTNode::FunctionCall { name: name.clone(), args }
+    // ASTNode::FunctionCall { name: name.clone(), args }
+    Ok(ASTNode::FunctionCall { name, args })
 }
 
-fn parse_parantheses(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> ASTNode {
+fn parse_parantheses(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<ASTNode, String> {
     let mut expr_tokens = Vec::new();
     let mut level = 1;
     while let Some(token) = tokens.next() {
@@ -152,32 +171,49 @@ fn parse_parantheses(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) 
     parse_expr(&mut expr_tokens.iter().peekable(), 0)
 }
 
-fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_prec: i32) -> ASTNode {
+fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_prec: i32) -> Result<ASTNode, String> {
     // Parse the left-hand side expression (either a number, identifier, or a parenthesized expression)
-    let mut left = match tokens.next() {
+    let mut left: ASTNode = match tokens.next() {
         Some(Token::Number(value)) => ASTNode::Number(*value),
         Some(Token::Identifier(name)) => {
             match tokens.peek() {
                 Some(&Token::Symbol('(')) => {
-                    parse_fn_call(name.clone(), tokens)
+                    // parse_fn_call(name.clone(), tokens)
+                    match parse_fn_call(name.clone(), tokens) {
+                        Ok(node) => node,
+                        Err(err) => return Err(err),
+                    }
                 },
                 _ => ASTNode::Identifier(name.clone()),
             }
         },
-        Some(Token::Symbol('(')) => parse_parantheses(tokens),
+        Some(Token::Symbol('(')) => {
+            match parse_parantheses(tokens) {
+                Ok(node) => node,
+                Err(err) => return Err(err),
+            }
+        }
         Some(Token::Operator(op)) => {
             let op_enum = match op.as_str() {
                 "-" => Operator::Neg,
                 "~" => Operator::Not,
-                _ => panic!("Unexpected operator"),
+                _ => return Err("Unexpected operator".to_string()),
             };
             let next_expr = parse_expr(tokens, precedence(&op_enum));
-            ASTNode::UnaryOp {
-                op: op_enum,
-                expr: Box::new(next_expr),
+            // ASTNode::UnaryOp {
+            //     op: op_enum,
+            //     expr: Box::new(next_expr),
+            // }
+            match next_expr {
+                Ok(node) => ASTNode::UnaryOp {
+                    op: op_enum,
+                    expr: Box::new(node),
+                },
+                Err(err) => return Err(err),
             }
         },
-        _ => panic!("Unexpected token"),
+        // _ => panic!("Unexpected token"),
+        _ => return Err("Unexpected token".to_string()),
     };
 
     // Process all operators following the left-hand side, respecting precedence
@@ -196,7 +232,8 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_pre
             ">=" => Operator::Ge,
             "==" => Operator::Eq,
             "~=" => Operator::Ne,
-            _ => panic!("Unexpected operator"),
+            // _ => panic!("Unexpected operator"),
+            _ => return Err("Unexpected operator".to_string()),
         };
 
         let prec = precedence(&op_enum);
@@ -209,18 +246,29 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_pre
         // Recursively parse the right-hand side of the expression, considering the next operator's precedence
         let right = parse_expr(tokens, prec + 1);
 
-        left = ASTNode::BinaryOp {
-            left: Box::new(left),
-            op: op_enum,
-            right: Box::new(right),
-        };
+        // left = ASTNode::BinaryOp {
+        //     left: Box::new(left),
+        //     op: op_enum,
+        //     right: Box::new(right),
+        // };
+        match right {
+            Ok(node) => {
+                left = ASTNode::BinaryOp {
+                    left: Box::new(left),
+                    op: op_enum,
+                    right: Box::new(node),
+                };
+            },
+            Err(err) => return Err(err),
+        }
     }
 
-    left
+    // left
+    Ok(left)
 }
 
 
-fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Vec<ASTNode> {
+fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Vec<ASTNode>, String> {
     let mut nodes = Vec::new();
     let mut level = 1;
     while let Some(token) = tokens.next() {
@@ -239,7 +287,7 @@ fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Vec<
     parse(nodes)
 }
 
-pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
+pub fn parse(tokens: Vec<Token>) -> Result<Vec<ASTNode>, String> {
     let mut nodes = Vec::new();
     let mut tokens = tokens.iter().peekable();
 
@@ -257,15 +305,25 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             "*=" => AssignmentKind::Mul,
                             "/=" => AssignmentKind::Div,
                             "%=" => AssignmentKind::Mod,
-                            _ => panic!("Unexpected assignment operator"),
+                            // _ => panic!("Unexpected assignment operator"),
+                            _ => return Err("Unexpected assignment operator".to_string()),
                         };
-                        nodes.push(ASTNode::Assignment { name: name.clone(), kind, value: Box::new(value) });
+                        // nodes.push(ASTNode::Assignment { name: name.clone(), kind, value: Box::new(value) });
+                        match value {
+                            Ok(node) => nodes.push(ASTNode::Assignment { name: name.clone(), kind, value: Box::new(node) }),
+                            Err(err) => return Err(err),
+                        }
                     },
                     Some(&Token::Symbol('(')) => {
-                        nodes.push(parse_fn_call(name.clone(), &mut tokens));
+                        // nodes.push(parse_fn_call(name.clone(), &mut tokens));
+                        match parse_fn_call(name.clone(), &mut tokens) {
+                            Ok(node) => nodes.push(node),
+                            Err(err) => return Err(err),
+                        }
                     },
                     _ => {
-                        panic!("Unexpected token \"{}\"", name);
+                        // panic!("Unexpected token \"{}\"", name);
+                        return Err(format!("Unexpected token \"{}\"", name));
                     },
                 }
             },
@@ -274,7 +332,8 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                     "var" => {
                         let name = match tokens.next() {
                             Some(Token::Identifier(name)) => name.clone(),
-                            _ => panic!("Expected an identifier"),
+                            // _ => panic!("Expected an identifier"),
+                            _ => return Err("Expected an identifier".to_string()),
                         };
 
                         match tokens.peek() {
@@ -282,9 +341,14 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                 if op.as_str() == "=" {
                                     tokens.next(); // Consume the '=' symbol
                                     let value = parse_expr(&mut tokens, 0);
-                                    nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(value) });
+                                    // nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(value) });
+                                    match value {
+                                        Ok(node) => nodes.push(ASTNode::VariableDeclaration { mutable: false, name, value: Box::new(node) }),
+                                        Err(err) => return Err(err),
+                                    }
                                 } else {
-                                    panic!("Unexpected assignment operator during variable declaration");
+                                    // panic!("Unexpected assignment operator during variable declaration");
+                                    return Err("Unexpected assignment operator during variable declaration".to_string());
                                 }
                             },
                             _ => {
@@ -295,7 +359,8 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                     "mut" => {
                         let name = match tokens.next() {
                             Some(Token::Identifier(name)) => name.clone(),
-                            _ => panic!("Expected an identifier"),
+                            // _ => panic!("Expected an identifier"),
+                            _ => return Err("Expected an identifier".to_string()),
                         };
                         
                         match tokens.peek() {
@@ -303,20 +368,27 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                 if op.as_str() == "=" {
                                     tokens.next(); // Consume the '=' symbol
                                     let value = parse_expr(&mut tokens, 0);
-                                    nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(value) });
+                                    // nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(value) });
+                                    match value {
+                                        Ok(node) => nodes.push(ASTNode::VariableDeclaration { mutable: true, name, value: Box::new(node) }),
+                                        Err(err) => return Err(err),
+                                    }
                                 } else {
-                                    panic!("Unexpected assignment operator during variable declaration");
+                                    // panic!("Unexpected assignment operator during variable declaration");
+                                    return Err("Unexpected assignment operator during variable declaration".to_string());
                                 }
                             },
                             _ => {
-                                panic!("Expected an assignment operator during variable declaration");
+                                // panic!("Expected an assignment operator during variable declaration");
+                                return Err("Expected an assignment operator during variable declaration".to_string());
                             },
                         }
                     },
                     "fun" => {
                         let name = match tokens.next() {
                             Some(Token::Identifier(name)) => name.clone(),
-                            _ => panic!("Expected an identifier"),
+                            // _ => panic!("Expected an identifier"),
+                            _ => return Err("Expected an identifier".to_string()),
                         };
 
                         let mut params = Vec::new();
@@ -327,7 +399,8 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                 match tokens.next() {
                                     Some(Token::Symbol(',')) => {},
                                     Some(Token::Symbol(')')) => break,
-                                    _ => panic!("Expected ',' or ')'"),
+                                    // _ => panic!("Expected ',' or ')'"),
+                                    _ => return Err("Expected ',' or ')'".to_string()),
                                 }
                             }
                         }
@@ -350,10 +423,15 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                 body.push(token.clone());
                             }
                         } else {
-                            panic!("Expected a code block");
+                            // panic!("Expected a code block");
+                            return Err("Expected a code block".to_string());
                         }
                         
-                        nodes.push(ASTNode::FunctionDeclaration { name, params, body: parse(body) });
+                        // nodes.push(ASTNode::FunctionDeclaration { name, params, body: parse(body) });
+                        match parse(body) {
+                            Ok(mut nodes) => nodes.push(ASTNode::FunctionDeclaration { name, params, body: nodes.clone() }),
+                            Err(err) => return Err(err),
+                        }
                     },
                     "if" => {
                         let mut condition_tokens = Vec::new();
@@ -365,10 +443,19 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             tokens.next();
                         }
                         let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
+                        match condition {
+                            Err(err) => return Err(err),
+                            _ => {},
+                        }
                         if tokens.next() != Some(&Token::Symbol('{')) {
-                            panic!("Expected a code block");
+                            // panic!("Expected a code block");
+                            return Err("Expected a code block".to_string());
                         }
                         let body = parse_body(&mut tokens);
+                        match body {
+                            Err(err) => return Err(err),
+                            _ => {},
+                        }
                         let mut else_body = Vec::new();
                         let mut else_ifs = Vec::new();
 
@@ -378,7 +465,8 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                     match name.as_str() {
                                         "elseif" => {
                                             if !else_body.is_empty() {
-                                                panic!("'elseif' must come before 'else'");
+                                                // panic!("'elseif' must come before 'else'");
+                                                return Err("'elseif' must come before 'else'".to_string());
                                             }
                                             tokens.next(); // Consume the 'elseif' keyword
 
@@ -392,17 +480,27 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                                             }
                                             let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                                             if tokens.next() != Some(&Token::Symbol('{')) {
-                                                panic!("Expected a code block");
+                                                // panic!("Expected a code block");
+                                                return Err("Expected a code block".to_string());
                                             }
-                                            let body = parse_body(&mut tokens);
-                                            else_ifs.push((Box::new(condition), body));
+                                            // let body = parse_body(&mut tokens);
+                                            // else_ifs.push((Box::new(condition), body));
+                                            match parse_body(&mut tokens) {
+                                                Ok(nodes) => else_ifs.push((Box::new(condition.unwrap()), nodes)),
+                                                Err(err) => return Err(err),
+                                            }
                                         },
                                         "else" => {
                                             tokens.next(); // Consume the 'else' keyword
                                             if tokens.next() != Some(&Token::Symbol('{')) {
-                                                panic!("Expected a code block");
+                                                // panic!("Expected a code block");
+                                                return Err("Expected a code block".to_string());
                                             }
-                                            else_body = parse_body(&mut tokens);
+                                            // else_body = parse_body(&mut tokens);
+                                            match parse_body(&mut tokens) {
+                                                Ok(nodes) => else_body = nodes,
+                                                Err(err) => return Err(err),
+                                            }
                                             break;
                                         },
                                         _ => break,
@@ -412,7 +510,12 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                             }
                         }
 
-                        nodes.push(ASTNode::IfStatement { condition: Box::new(condition), body, else_body, else_ifs });
+                        // nodes.push(ASTNode::IfStatement { condition: Box::new(condition), body, else_body, else_ifs });
+                        match condition {
+                            Ok(node) => nodes.push(ASTNode::IfStatement { condition: Box::new(node), body: body.unwrap(), else_body, else_ifs }),
+                            Err(err) => return Err(err),
+                        }
+
                     },
                     "while" => {
                         let mut condition_tokens = Vec::new();
@@ -425,11 +528,20 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                         }
                         let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                         if tokens.next() != Some(&Token::Symbol('{')) {
-                            panic!("Expected a code block");
+                            // panic!("Expected a code block");
+                            return Err("Expected a code block".to_string());
                         }
                         let body = parse_body(&mut tokens);
+                        match body {
+                            Err(err) => return Err(err),
+                            _ => {},
+                        }
 
-                        nodes.push(ASTNode::WhileStatement { condition: Box::new(condition), body });
+                        // nodes.push(ASTNode::WhileStatement { condition: Box::new(condition), body });
+                        match condition {
+                            Ok(node) => nodes.push(ASTNode::WhileStatement { condition: Box::new(node), body: body.unwrap() }),
+                            Err(err) => return Err(err),
+                        }
                     },
                     "break" => {
                         nodes.push(ASTNode::Break {});
@@ -439,11 +551,19 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                     },
                     "return" => {
                         let expr = parse_expr(&mut tokens, 0);
-                        nodes.push(ASTNode::Return { expr: Box::new(expr) });
+                        // nodes.push(ASTNode::Return { expr: Box::new(expr) });
+                        match expr {
+                            Ok(node) => nodes.push(ASTNode::Return { expr: Box::new(node) }),
+                            Err(err) => return Err(err),
+                        }
                     },
                     "out" => {
                         let expr = parse_expr(&mut tokens, 0);
-                        nodes.push(ASTNode::Output { expr: Box::new(expr) });
+                        // nodes.push(ASTNode::Output { expr: Box::new(expr) });
+                        match expr {
+                            Ok(node) => nodes.push(ASTNode::Output { expr: Box::new(node) }),
+                            Err(err) => return Err(err),
+                        }
                     }
                     _ => {},
                 }
@@ -453,10 +573,15 @@ pub fn parse(tokens: Vec<Token>) -> Vec<ASTNode> {
                 println!("Catch-all: {:?}", token);
                 let result = parse_expr(&mut tokens, 0);
                 println!("{:?}", result);
-                nodes.push(result);
+                // nodes.push(result);
+                match result {
+                    Ok(node) => nodes.push(node),
+                    Err(err) => return Err(err),
+                }
             }
         }
     }
 
-    nodes
+    // nodes
+    Ok(nodes)
 }
