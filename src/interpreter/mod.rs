@@ -16,19 +16,7 @@ impl Interpreter {
         match expr {
             ASTNode::Number(value) => Ok(DataType::Number(value)),
             ASTNode::Identifier(name) => {
-                // let instructions = vec![
-                //     Instruction::LoadVar(0, name),
-                // ];
-                // self.vm.execute(instructions);
-                // Ok(self.vm.get_register_value(0))
-
                 let result = self.vm.get_variable(&name);
-                // match result {
-                //     Some(value) => Ok(value),
-                //     None => Err(format!("Variable {:?} not found", name)),
-                // }
-
-                // result is Result<Option<DataType>, String>
                 match result {
                     Ok(value) => match value {
                         Some(value) => Ok(value),
@@ -52,7 +40,6 @@ impl Interpreter {
                 
                 // Only add numbers
                 if !left.is_number() || !right.is_number() {
-                    // panic!("Expected numbers, got {:?} and {:?}", left, right);
                     return Err(format!("Expected numbers, got {:?} and {:?}", left, right));
                 }
 
@@ -97,8 +84,6 @@ impl Interpreter {
                     let arg_value = self.compute_expr(arg.clone());
                     match arg_value {
                         Ok(value) => {
-                            // self.vm.load_value_into_register(i, value);
-                            // arg_indices.push(i);
                             match self.vm.get_or_add_to_memory(value) {
                                 Ok(_) => arg_indices.push(i),
                                 Err(e) => return Err(e),
@@ -108,8 +93,6 @@ impl Interpreter {
                     }
                 }
                 
-                // let (params, body, scope) = self.vm.get_function(&name);
-                // get_function returns a Result<(Vec<String>, Vec<ASTNode>, Vec<DataType>), String>
                 let function = self.vm.get_function(&name);
                 let (params, body, scope) = match function {
                     Ok(value) => value,
@@ -118,7 +101,6 @@ impl Interpreter {
 
                 let old_scopes = self.vm.scopes.clone();
                 let old_pc = self.vm.pc;
-                // println!("Scope: {:?}", scope);
                 self.vm.scopes = vec![scope];
                 self.vm.pc = 0;
 
@@ -126,7 +108,6 @@ impl Interpreter {
                     let value = self.vm.get_register_value(i);
                     match value {
                         Ok(value) => {
-                            // self.vm.declare_variable(param.clone(), value, false);
                             match self.vm.declare_variable(param.clone(), value, false) {
                                 Ok(_) => {},
                                 Err(e) => return Err(e),
@@ -134,21 +115,13 @@ impl Interpreter {
                         },
                         Err(e) => return Err(e),
                     }
-                    // self.vm.declare_variable(param.clone(), self.vm.get_register_value(i), false);
                 }
 
                 // interpret the function body
                 let result = self.interpret(body.clone());
-                // println!("Result: {:?}", result); // 
                 self.vm.scopes = old_scopes;
                 self.vm.pc = old_pc;
 
-                // if let Some(value) = result {
-                //     value[0].clone()
-                // } else {
-                //     // println!("Function {:?} returned None", name);
-                //     DataType::Null()
-                // }
                 match result {
                     Ok(Some(value)) => Ok(value[0].clone()),
                     Ok(None) => Ok(DataType::Null()),
@@ -163,15 +136,8 @@ impl Interpreter {
         match node {
             ASTNode::VariableDeclaration { mutable, name, value } => {
                 let value = self.compute_expr(*value);
-                // self.vm.load_value_into_register(0, value);
-                // if mutable {
-                //     vec![Instruction::DeclareMutVar(0, name)]
-                // } else {
-                //     vec![Instruction::DeclareVar(0, name)]
-                // }
                 match value {
                     Ok(value) => {
-                        // self.vm.declare_variable(name, value, mutable);
                         match self.vm.declare_variable(name, value, mutable) {
                             Ok(_) => return Ok(None),
                             Err(e) => return Err(e),
@@ -202,11 +168,7 @@ impl Interpreter {
                     AssignmentKind::Div => current_value / value,
                     AssignmentKind::Mod => current_value % value,
                 };
-                // self.vm.load_value_into_register(0, modified_value);
-                // vec![Instruction::StoreVar(0, name)]
                 let address = self.vm.get_or_add_to_memory(modified_value);
-                // self.vm.set_variable_address(&name, address);
-                // Ok(None)
                 match address {
                     Ok(address) => {
                         match self.vm.set_variable_address(&name, address) {
@@ -218,7 +180,6 @@ impl Interpreter {
                 }
             },
             ASTNode::FunctionDeclaration { name, params, body } => {
-                // self.vm.declare_function(name, params, body);
                 match self.vm.declare_function(name, params, body) {
                     Ok(_) => Ok(None),
                     Err(e) => Err(e),
@@ -226,9 +187,6 @@ impl Interpreter {
             },
             ASTNode::Return { expr } => {
                 let value = self.compute_expr(*expr);
-                // self.vm.load_value_into_register(0, value);
-                // vec![Instruction::RetFunc(vec![0])]
-                // Ok(Some(vec![value]))
                 match value {
                     Ok(value) => Ok(Some(vec![value])),
                     Err(e) => Err(e),
@@ -272,9 +230,6 @@ impl Interpreter {
                         break;
                     }
                     let result = self.interpret(body.clone());
-                    // if let Some(value) = result {
-                    //     output = Some(value);
-                    // }
                     match result {
                         Ok(value) => {
                             if let Some(value) = value {
@@ -292,20 +247,14 @@ impl Interpreter {
                 }
             },
             ASTNode::Break {  } => {
-                // vec![Instruction::BreakWhile]
                 Ok(None) // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
             },
             ASTNode::Continue {  } => {
-                // vec![Instruction::ContinueWhile]
                 Ok(None) // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
             },
 
             ASTNode::Output { expr } => {
                 let expr_value = self.compute_expr(*expr);
-                // self.vm.load_value_into_register(0, expr_value);
-                // vec![Instruction::Out(0)]
-                // println!("{}", expr_value);
-                // Ok(None)
 
                 match expr_value {
                     Ok(value) => {
@@ -321,18 +270,6 @@ impl Interpreter {
             }
         }
     }
-
-    // pub fn precompile(&mut self, ast: Vec<ASTNode>) -> Vec<Instruction> {
-    //     let mut instructions = vec![];
-
-    //     // Convert into instructions
-    //     for node in ast {
-    //         let node_instructions = self.match_node(node);
-    //         instructions.extend(node_instructions);
-    //     }
-        
-    //     instructions
-    // }
 
     pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Result<Option<Vec<DataType>>, String> {
         for node in ast {

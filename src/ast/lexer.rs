@@ -52,14 +52,7 @@ pub fn tokenize(input: &str) -> Vec<Token> {
             // Match operators, assigners and the NOT operator
             '+' | '-' | '*' | '/' | '%' | '=' | '<' | '>' | '~' | '&' | '|' => {
                 let mut op = String::new();
-                // while let Some(&c) = chars.peek() {
-                //     if "+-*/%=<>~".contains(c) {
-                //         op.push(c);
-                //         chars.next();
-                //     } else {
-                //         break;
-                //     }
-                // }
+                
                 op.push(ch);
                 chars.next();
                 if chars.peek() == Some(&'=') {

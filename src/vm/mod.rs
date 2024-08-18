@@ -64,26 +64,6 @@ impl VM {
         vm
     }
 
-    // pub fn execute(&mut self, program: Vec<instruction::Instruction>) -> Result<Option<Vec<Rc<RefCell<DataType>>>>, String> {
-    //     self.running = true;
-    //     self.pc = 0;
-        
-    //     while self.running && self.pc < program.len() {
-    //         let instruction = &program[self.pc];
-    //         self.pc += 1;
-    //         let result = instruction.execute(self, program.clone());
-    //         // Result is a Vec of the addresses (Rc<RefCell<DataType>>) of the return values
-    //         if let Some(result) = result {
-    //             // return Some(result.iter().map(|data| Rc::clone(data).borrow().clone()).collect());
-    //             // get the value of the result
-    //             return Ok(Some(result));
-    //         }
-    //     }
-        
-    //     // output is Vec<Rc<RefCell<DataType>>>
-    //     return Ok(None);
-    // }
-
     pub fn truthy_check(&self, value: DataType) -> bool {
         match value {
             DataType::Number(n) => n != 0,
@@ -111,7 +91,6 @@ impl VM {
     pub fn add_to_memory(&mut self, data: DataType) -> Result<Rc<RefCell<DataType>>, String> {
         let address = self.get_free_address_index();
         if address == MEM_SIZE - 1 {
-            // panic!("Memory full.");
             return Err("Memory full.".to_string());
         }
         
@@ -125,7 +104,6 @@ impl VM {
         if address < MEM_SIZE {
             Ok(self.memory[address].clone())
         } else {
-            // panic!("Memory address out of bounds.");
             Err("Memory address out of bounds.".to_string())
         }
     }
@@ -139,12 +117,6 @@ impl VM {
     }
 
     pub fn load_value_into_register(&mut self, register: usize, value: DataType) -> Result<(), String> {
-        // if let Some(registers) = &mut self.registers {
-        //     // registers[register].address = self.get_or_add_to_memory(value); // Two mutable borrows!
-        // } else {
-        //     panic!("Registers not initialized.");
-        // }
-
         let result = self.get_or_add_to_memory(value);
         match result {
             Ok(address) => {
@@ -159,7 +131,6 @@ impl VM {
         if let Some(registers) = &self.registers {
             Ok(Rc::clone(&registers[register].address).borrow().clone())
         } else {
-            // panic!("Registers not initialized.");
             Err("Registers not initialized.".to_string())
         }
     }
@@ -168,7 +139,6 @@ impl VM {
         if let Some(registers) = &self.registers {
             Ok(registers[register].address.clone())
         } else {
-            // panic!("Registers not initialized.");
             Err("Registers not initialized.".to_string())
         }
     }
@@ -177,7 +147,6 @@ impl VM {
         if let Some(registers) = &self.registers {
             Ok(self.memory.iter().position(|data| Rc::ptr_eq(data, &registers[register].address)).unwrap())
         } else {
-            // panic!("Registers not initialized.");
             Err("Registers not initialized.".to_string())
         }
     }
@@ -198,7 +167,6 @@ impl VM {
         if let Some(current_scope) = self.scopes.last_mut() {
             // Check if the variable is already declared
             if current_scope.get_all_symbols().contains_key(&name) {
-                // panic!("Variable '{}' already declared in this scope.", name);
                 return Err(format!("Variable '{}' already declared in this scope.", name));
             }
 
@@ -211,7 +179,6 @@ impl VM {
             current_scope.symbols.insert(name, symbol);
             Ok(())
         } else {
-            // panic!("No scope to declare variable in.");
             Err("No scope to declare variable in.".to_string())
         }
     }
@@ -223,17 +190,10 @@ impl VM {
             }
         }
 
-        // panic!("Variable '{}' not found.", name);
         Err(format!("Variable '{}' not found.", name))
     }
 
     pub fn get_variable(&self, name: &str) -> Result<Option<DataType>, String> {
-        // if let Some(symbol) = self.get_variable_base(name) {
-        //     Ok(Some(Rc::clone(&symbol.address).borrow().clone()))
-        // } else {
-        //     None
-        // }
-
         let result = self.get_variable_base(name);
         match result {
             Ok(Some(symbol)) => Ok(Some(Rc::clone(&symbol.address).borrow().clone())),
@@ -243,12 +203,6 @@ impl VM {
     }
 
     pub fn get_variable_address(&self, name: &str) -> Result<Option<Rc<RefCell<DataType>>>, String> {
-        // if let Some(symbol) = self.get_variable_base(name) {
-        //     Some(symbol.address.clone())
-        // } else {
-        //     None
-        // }
-
         let result = self.get_variable_base(name);
         match result {
             Ok(Some(symbol)) => Ok(Some(symbol.address.clone())),
@@ -261,7 +215,6 @@ impl VM {
         for scope in self.scopes.iter_mut().rev() {
             if let Some(symbol) = scope.symbols.get_mut(name) {
                 if !symbol.mutable {
-                    // panic!("Variable '{}' is not mutable.", name);
                     return Err(format!("Variable '{}' is not mutable.", name));
                 }
     
@@ -269,7 +222,6 @@ impl VM {
                 return Ok(());
             }
         }
-        // panic!("Variable '{}' not found.", name);
 
         Err(format!("Variable '{}' not found.", name))
     }
@@ -301,17 +253,6 @@ impl VM {
     }
 
     pub fn get_function(&self, name: &str) -> Result<(Vec<String>, Vec<ASTNode>, Scope), String> {
-        // if let Some(symbol) = self.get_variable_base(name) {
-        //     if let DataType::Function(params, instructions, captured_scope) = Rc::clone(&symbol.address).borrow().clone() {
-        //         (params, instructions, captured_scope)
-        //     } else {
-        //         // panic!("'{}' is not a function.", name);
-        //         panic!("Expected function, got: {:?}", Rc::clone(&symbol.address).borrow().clone());
-        //     }
-        // } else {
-        //     panic!("Function '{}' not found.", name);
-        // }
-
         match self.get_variable_base(name) {
             Ok(Some(symbol)) => {
                 if let DataType::Function(params, instructions, captured_scope) = Rc::clone(&symbol.address).borrow().clone() {
@@ -324,48 +265,4 @@ impl VM {
             Err(e) => Err(e),
         }
     }
-
-    // pub fn call_function(&mut self, name: &str, args_indices: Vec<usize>) {
-    //     // Find the function definition immutably (use self.get_variable)
-    //     let (params, instructions, captured_scope) = {
-    //         let function = self.get_variable(name).unwrap();
-    //         if let DataType::Function(params, instructions, captured_scope) = function {
-    //             (params, instructions, captured_scope)
-    //         } else {
-    //             panic!("'{}' is not a function.", name);
-    //         }
-    //     };
-    
-    //     // Check the number of arguments
-    //     if args_indices.len() != params.len() {
-    //         panic!("Function '{}' expects {} arguments, but {} were provided.", name, params.len(), args_indices.len());
-    //     }
-    
-    //     // Get the addresses of the arguments
-    //     let addresses = args_indices.iter().map(|&i| self.get_register_address(i)).collect::<Vec<Rc<RefCell<DataType>>>>();
-
-    //     // Mutable operations
-    //     let old_scopes = self.scopes.clone();
-    //     let return_address = self.pc;
-
-    //     self.scopes = vec![captured_scope];
-    //     self.pc = 0;
-    
-    //     // Declare the parameter variables with the values
-    //     for (param, address) in params.iter().zip(addresses.iter()) {
-    //         self.declare_variable_from_memory(param.clone(), address.clone(), false);
-    //     }
-
-    //     // Execute the function
-    //     let return_addresses = self.execute(instructions);
-
-    //     // Restore the previous state
-    //     self.pc = return_address;
-    //     self.scopes = old_scopes;
-
-    //     // Set the return values to the registers
-    //     for (i, value) in return_addresses.iter().enumerate() {
-    //         self.registers.as_mut().unwrap()[i].address = value.clone();
-    //     }
-    // }
 }
