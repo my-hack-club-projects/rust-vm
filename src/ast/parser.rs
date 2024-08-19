@@ -269,8 +269,10 @@ fn get_body_nodes(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> 
                     break;
                 }
             },
-            _ => nodes.push(token.clone()),
+            _ => {}
         }
+
+        nodes.push(token.clone());
     }
     
     Ok(nodes)
@@ -468,17 +470,20 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<ASTNode>, String> {
                         while let Some(&token) = tokens.peek() {
                             match token {
                                 Token::Symbol('{') => break,
-                                _ => condition_tokens.push(token.clone()),
+                                _ => {
+                                    condition_tokens.push(token.clone());
+                                    tokens.next();
+                                }
                             }
-                            tokens.next();
                         }
+                        
                         let condition = parse_expr(&mut condition_tokens.iter().peekable(), 0);
                         match condition {
                             Err(err) => return Err(err),
                             _ => {},
                         }
                         if tokens.next() != Some(&Token::Symbol('{')) {
-                            return Err("Expected a code block".to_string());
+                            return Err("(if) Expected a code block".to_string());
                         }
                         let body = parse_body(&mut tokens);
                         match body {

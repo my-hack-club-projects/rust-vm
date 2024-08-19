@@ -59,6 +59,7 @@ pub fn start() {
             break;
         }
 
+        println!("Input: {}", input);
         let ast = crate::ast::parse(&input);
         match ast {
             Ok(ast) => {

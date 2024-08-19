@@ -3,12 +3,27 @@ use crate::ast::parser::{ASTNode, Operator, AssignmentKind};
 
 pub struct Interpreter {
     vm: VM,
+    flags: InterpreterFlags,
+}
+
+struct InterpreterFlags {
+    pub break_flag: bool,
+    pub continue_flag: bool,
+}
+impl InterpreterFlags {
+    pub fn new() -> InterpreterFlags {
+        InterpreterFlags {
+            break_flag: false,
+            continue_flag: false,
+        }
+    }
 }
 
 impl Interpreter {
     pub fn new() -> Interpreter {
         Interpreter {
             vm: VM::new(),
+            flags: InterpreterFlags::new(),
         }
     }
 
@@ -230,6 +245,10 @@ impl Interpreter {
                         break;
                     }
                     let result = self.interpret(body.clone());
+                    if self.flags.break_flag {
+                        self.flags.break_flag = false;
+                        break;
+                    }
                     match result {
                         Ok(value) => {
                             if let Some(value) = value {
@@ -247,10 +266,12 @@ impl Interpreter {
                 }
             },
             ASTNode::Break {  } => {
-                Ok(None) // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
+                self.flags.break_flag = true;
+                Ok(None)
             },
             ASTNode::Continue {  } => {
-                Ok(None) // TODO: Make it return some kind of LoopEnd enum for the interpreter to handle
+                self.flags.continue_flag = true;
+                Ok(None)
             },
 
             ASTNode::Output { expr } => {
@@ -279,6 +300,10 @@ impl Interpreter {
     pub fn interpret(&mut self, ast: Vec<ASTNode>) -> Result<Option<Vec<DataType>>, String> {
         for node in ast {
             let result = self.match_node(node);
+            if self.flags.continue_flag {
+                self.flags.continue_flag = false;
+                return Ok(None);
+            }
 
             match result {
                 Ok(option_value) => {
