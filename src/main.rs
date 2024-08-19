@@ -1,6 +1,7 @@
 mod vm;
 mod ast;
 mod interpreter;
+mod solve;
 mod repl;
 
 fn main() {
@@ -8,12 +9,9 @@ fn main() {
 
     let mut interpreter = interpreter::Interpreter::new();
     let code = r#"
-    mut x = 0
-    while 1 {
-    x += 1
-        if x > 10 {
-            break
-        }
+    var x = 1
+    math m {
+        2 * x - 7 = 5 - 4 * x
     }
     "#;
 

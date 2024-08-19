@@ -1,5 +1,6 @@
 use crate::vm::{VM, symbol::DataType};
 use crate::ast::parser::{ASTNode, Operator, AssignmentKind};
+use crate::solve;
 
 pub struct Interpreter {
     vm: VM,
@@ -300,8 +301,44 @@ impl Interpreter {
                 // 4. Declare the undeclared variables with the correct value.
                 
                 println!("Solving math expression: {:?}", name);
-                
-                // TODO: Implement this
+                let mut vars = vec![];
+                for node in &body {
+                    let node_vars = solve::find_vars(&node);
+                    // vars.extend(node_vars);
+                    // only append the ones that are not already in the vars vector
+                    for var in node_vars {
+                        if !vars.contains(&var) {
+                            vars.push(var);
+                        }
+                    }
+                }
+                println!("Variables: {:?}", vars);
+                let declared_vars = vars.iter().filter(|var| {
+                    let result = self.vm.get_variable(&var);
+                    match result {
+                        Ok(value) => match value {
+                            Some(_) => true,
+                            None => false,
+                        },
+                        Err(_) => false,
+                    }
+                }).collect::<Vec<_>>();
+                println!("Declared variables: {:?}", declared_vars);
+                let mut undeclared_vars = vars.iter().filter(|var| {
+                    !declared_vars.contains(&var)
+                }).collect::<Vec<_>>();
+                println!("Undeclared variables: {:?}", undeclared_vars);
+
+                // now, we need to formulate the equations
+                // for now, as a test, just use the first equation only
+                let equation = &body[0];
+                let (mut coefficients, mut constant) = solve::formulate_equation(equation);
+                println!("Equation: {:?} = {:?}", coefficients, constant);
+
+                // now, we need to solve the equation
+                let solution = solve::solve_equation(&mut coefficients, &mut constant);
+                println!("Solution: {:?}", solution);
+
                 return Ok(None);
             }
             

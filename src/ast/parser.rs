@@ -107,6 +107,41 @@ pub enum ASTNode {
     // TODO: Add more AST nodes
 }
 
+impl ASTNode {
+    pub fn children(&self) -> Vec<&ASTNode> {
+        match self {
+            ASTNode::BinaryOp { left, right, .. } => vec![left, right],
+            ASTNode::UnaryOp { expr, .. } => vec![expr],
+            ASTNode::VariableDeclaration { value, .. } => vec![value],
+            ASTNode::Assignment { value, .. } => vec![value],
+            ASTNode::FunctionDeclaration { body, .. } => body.iter().collect(),
+            ASTNode::FunctionCall { args, .. } => args.iter().collect(),
+            ASTNode::IfStatement { condition, body, else_body, else_ifs } => {
+                let mut children = vec![condition.as_ref()];
+                children.extend(body.iter());
+                children.extend(else_body.iter());
+                for (condition, body) in else_ifs {
+                    children.push(condition.as_ref());
+                    children.extend(body.iter());
+                }
+                children
+            },
+            ASTNode::WhileStatement { condition, body } => {
+                // condition is a Box<ASTNode>, so we need to dereference it
+                let mut children = vec![condition.as_ref()];
+                children.extend(body.iter());
+                children
+            },
+
+            ASTNode::Return { expr } => vec![expr],
+            ASTNode::Output { expr } => vec![expr],
+            ASTNode::MathBody { body, .. } => body.iter().collect(),
+            ASTNode::MathExpression { left, right } => vec![left, right],
+            _ => vec![],
+        }
+    }
+}
+
 fn parse_fn_call(name: String, tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<ASTNode, String> {
     tokens.next(); // Consume the '(' symbol
     let mut args = Vec::new();
