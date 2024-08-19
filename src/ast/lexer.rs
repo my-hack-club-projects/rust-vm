@@ -45,7 +45,7 @@ pub fn tokenize(input: &str) -> Vec<Token> {
                     }
                 }
                 match ident.as_str() {
-                    "var" | "mut" | "if" | "else" | "elseif" | "while" | "break" | "continue" | "fun" | "return" | "out" => tokens.push(Token::Keyword(ident)),
+                    "var" | "mut" | "if" | "else" | "elseif" | "while" | "break" | "continue" | "fun" | "return" | "out" | "math" => tokens.push(Token::Keyword(ident)),
                     _ => tokens.push(Token::Identifier(ident)),
                 }
             },

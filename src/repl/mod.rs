@@ -62,6 +62,7 @@ pub fn start() {
         let ast = crate::ast::parse(&input);
         match ast {
             Ok(ast) => {
+                println!("{:?}", ast);
                 match interpreter.interpret(ast) {
                     Ok(_) => {},
                     Err(e) => {

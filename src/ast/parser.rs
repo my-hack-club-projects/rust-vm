@@ -94,6 +94,15 @@ pub enum ASTNode {
     Return { expr: Box<ASTNode> },
     Output { expr: Box<ASTNode> },
 
+    MathBody { // Math expression
+        name: String,
+        body: Vec<ASTNode>,
+    },
+    MathExpression {
+        left: Box<ASTNode>,
+        right: Box<ASTNode>,
+    }
+
 
     // TODO: Add more AST nodes
 }
@@ -202,7 +211,7 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_pre
                 Err(err) => return Err(err),
             }
         },
-        _ => return Err("Unexpected token".to_string()),
+        _ => return Err(format!("Unexpected token {:?}", tokens.peek())),
     };
 
     // Process all operators following the left-hand side, respecting precedence
@@ -248,8 +257,7 @@ fn parse_expr(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>, min_pre
     Ok(left)
 }
 
-
-fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Vec<ASTNode>, String> {
+fn get_body_nodes(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Vec<Token>, String> {
     let mut nodes = Vec::new();
     let mut level = 1;
     while let Some(token) = tokens.next() {
@@ -264,8 +272,64 @@ fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Resu
             _ => nodes.push(token.clone()),
         }
     }
+    
+    Ok(nodes)
+}
 
-    parse(nodes)
+fn parse_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Vec<ASTNode>, String> {
+    let nodes = get_body_nodes(tokens);
+
+    match nodes {
+        Ok(nodes) => parse(nodes),
+        Err(err) => Err(err),
+    }
+}
+
+fn parse_math_body(tokens: &mut std::iter::Peekable<std::slice::Iter<Token>>) -> Result<Vec<ASTNode>, String> {
+    let nodes = get_body_nodes(tokens);
+
+    match nodes {
+        Ok(nodes) => {
+            // Inside a math block can only be math expressions like this:
+            // a + b = c + d
+            // a + b = c
+            // c = a + b
+            // i.e. both sides of the equation are a math expression parsed using parse_expr
+            // there can be multiple equations, so we need to loop until there's no more
+
+            let mut output_nodes = Vec::new();
+            let mut nodes = nodes.iter().peekable();
+            while let Some(node) = nodes.next() {
+                let mut tokens_left = Vec::new();
+                tokens_left.push(node.clone());
+                while let Some(token) = nodes.next() {
+                    match token {
+                        Token::Assigner(op) => {
+                            if op.as_str() == "=" {
+                                break;
+                            }
+                        },
+                        _ => tokens_left.push(token.clone()),
+                    }
+                }
+                let left_expr = parse_expr(&mut tokens_left.iter().peekable(), 0);
+                match left_expr {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
+
+                let right_expr = parse_expr(&mut nodes, 0);
+                match right_expr {
+                    Ok(_) => {},
+                    Err(err) => return Err(err),
+                };
+                output_nodes.push(ASTNode::MathExpression { left: Box::new(left_expr.unwrap()), right: Box::new(right_expr.unwrap()) });
+            }
+
+            Ok(output_nodes)
+        },
+        Err(err) => Err(err),
+    }
 }
 
 pub fn parse(tokens: Vec<Token>) -> Result<Vec<ASTNode>, String> {
@@ -516,6 +580,23 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<ASTNode>, String> {
                         let expr = parse_expr(&mut tokens, 0);
                         match expr {
                             Ok(node) => nodes.push(ASTNode::Output { expr: Box::new(node) }),
+                            Err(err) => return Err(err),
+                        }
+                    },
+                    "math" => {
+                        let name = match tokens.next() {
+                            Some(Token::Identifier(name)) => name.clone(),
+                            _ => return Err("Expected an identifier".to_string()),
+                        };
+
+                        if tokens.next() != Some(&Token::Symbol('{')) {
+                            return Err("Expected a code block".to_string());
+                        }
+
+                        let body = parse_math_body(&mut tokens);
+
+                        match body {
+                            Ok(body) => nodes.push(ASTNode::MathBody { name, body }),
                             Err(err) => return Err(err),
                         }
                     }

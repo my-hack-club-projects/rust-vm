@@ -263,6 +263,11 @@ impl Interpreter {
                     },
                     Err(e) => Err(e),
                 }
+            },
+
+            ASTNode::MathBody { name, body } => {
+                println!("Solving math expression: {:?}", name);
+                return Ok(None);
             }
             
             _ => {
