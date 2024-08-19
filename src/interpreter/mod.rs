@@ -287,7 +287,21 @@ impl Interpreter {
             },
 
             ASTNode::MathBody { name, body } => {
+                // What we need to do is:
+                // 1. There are multiple math expressions in the Body. They all define some sort of relationship between variables.
+                // 2. Some variables are declared and have a value. Do not touch them.
+                // 3. The other variables that are used in the expressions are not declared.
+                // 4. We need to solve for the undeclared variables and declare them with the correct value.
+
+                // Steps:
+                // 1. Get all the variables that are used in the expressions.
+                // 2. Get the variables that are declared and have a value.
+                // 3. Solve for the undeclared variables.
+                // 4. Declare the undeclared variables with the correct value.
+                
                 println!("Solving math expression: {:?}", name);
+                
+                // TODO: Implement this
                 return Ok(None);
             }
             
