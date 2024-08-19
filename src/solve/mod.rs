@@ -67,7 +67,7 @@ pub fn formulate_equation(ast: &ASTNode) -> (HashMap<String, f64>, f64) {
         panic!("Expected MathExpression, found {:?}", ast);
     }
 
-    (coefficients, constant)
+    (coefficients, -constant)
 }
 
 pub fn solve_equation(coefficients: &mut HashMap<String, f64>, constant: &mut f64) -> Result<HashMap<String, f64>, String> {
@@ -82,7 +82,7 @@ pub fn solve_equation(coefficients: &mut HashMap<String, f64>, constant: &mut f6
         if let Some(&coeff) = coefficients.get(var) {
             matrix[(i, i)] = coeff;
         }
-        constants[i] = -*constant;
+        constants[i] = *constant;
     }
 
     // Solve the linear system

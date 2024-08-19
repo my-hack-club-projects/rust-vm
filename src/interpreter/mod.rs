@@ -334,10 +334,14 @@ impl Interpreter {
                 let equation = &body[0];
                 let (mut coefficients, mut constant) = solve::formulate_equation(equation);
                 println!("Equation: {:?} = {:?}", coefficients, constant);
-
                 // now, we need to solve the equation
                 let solution = solve::solve_equation(&mut coefficients, &mut constant);
                 println!("Solution: {:?}", solution);
+
+                // the solution applies to the variables in the rearranged equation
+                // so, we need to map the solution to the original variables
+                // for example for x + 1 = 2 * x, the solution is x = 1,
+                
 
                 return Ok(None);
             }

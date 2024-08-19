@@ -9,9 +9,9 @@ fn main() {
 
     let mut interpreter = interpreter::Interpreter::new();
     let code = r#"
-    var x = 1
     math m {
-        2 * x - 7 = 5 - 4 * x
+        x + y = 5
+        x - y = 1
     }
     "#;
 
