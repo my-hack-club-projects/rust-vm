@@ -523,11 +523,7 @@ pub fn parse(tokens: Vec<Token>) -> Result<Vec<ASTNode>, String> {
                 }
             }
             _ => {
-                let result = parse_expr(&mut tokens, 0);
-                match result {
-                    Ok(node) => nodes.push(node),
-                    Err(err) => return Err(err),
-                }
+                return Err(format!("Unexpected token {:?}", token));
             }
         }
     }
