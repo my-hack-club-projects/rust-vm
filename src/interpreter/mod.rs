@@ -288,6 +288,7 @@ impl Interpreter {
             },
 
             ASTNode::MathBody { name, body } => {
+                panic!("Unsupported feature - Math expressions not implemented yet");
                 // What we need to do is:
                 // 1. There are multiple math expressions in the Body. They all define some sort of relationship between variables.
                 // 2. Some variables are declared and have a value. Do not touch them.

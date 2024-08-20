@@ -1,40 +1,28 @@
-# no name programming language
-(haven't even decided what it's gonna be used for yet)
+# unnamed programming language
 
-**This is a simple 'VM' (as in JVM, not oracle virtualbox :p) that interprets instructions into rust functions**
-I've never done this kind of thing before and don't know if I'm doing it right and if the terms I'm using are correct.
+This is a simple interpreted programming language written in Rust. I plan on making it a math-oriented programming language, perhaps to be used with a raspberry pi calculator?
 
-**Currently supported instructions:**
-- Variable assignment, reading (only integers)
-- Function declarations, function calling
-- While loops with break and continue
-- If statements with elseif and else
-- Basic arithmetic & logical operations such as +, -, AND, NOT
+## Supported features:
+- Variable declaration & assignment (integers only for now)
+- Immutable variables by default, mutable variables using the 'mut' keyword
+- Functions
+- While loops & if-statements
+- a basic REPL
 
-There's a sort of garbage collection mechanism that reuses old, unused data in memory.
-
-## how to run
-- Make sure you have 'cargo' (rust's package manager) installed
-- Clone this repository and in the root, run ```cargo run```
-- In the main.rs file, import the 'vm' module and run ```vm.execute``` with a Vec of Instructions, like this:
-```rs
-use std::vec;
-
-mod vm;
-use vm::instruction::Instruction;
-
-fn main() {
-    let mut vm = vm::VM::new();
-
-    let program = vec![
-        // Your instructions/program here
-        Instruction::LoadLiteral(123, 2),
-        Instruction::DeclareVar(0, "x".to_string()), // Holds the value of '123'
-
-        Instruction::Halt,
-    ];
-
-    vm.execute(program);
-}
+## WIP Feature: Math equation code blocks, for example `x + 2 = y` would be valid syntax.
+## Example code:
 ```
-**NOTE:** The main.rs file constantly changes, as I'm using it for debugging. This is NOT production ready in any way!
+var x = 1
+mut y = 0
+
+while y < 10 {
+    y += x
+}
+
+out x y # Outputs the values of 'x' and 'y'
+```
+
+## How to run
+1. Clone this repository
+2. Make sure you have 'cargo' installed (rust's package manager)
+3. run `cargo run`. This will start a REPL
