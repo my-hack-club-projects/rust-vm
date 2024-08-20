@@ -313,36 +313,24 @@ impl Interpreter {
                     }
                 }
                 println!("Variables: {:?}", vars);
-                let declared_vars = vars.iter().filter(|var| {
-                    let result = self.vm.get_variable(&var);
-                    match result {
-                        Ok(value) => match value {
-                            Some(_) => true,
-                            None => false,
-                        },
-                        Err(_) => false,
-                    }
-                }).collect::<Vec<_>>();
-                println!("Declared variables: {:?}", declared_vars);
-                let mut undeclared_vars = vars.iter().filter(|var| {
-                    !declared_vars.contains(&var)
-                }).collect::<Vec<_>>();
-                println!("Undeclared variables: {:?}", undeclared_vars);
+                let known_values = solve::get_known_values(&vars, &self.vm);
 
                 // now, we need to formulate the equations
                 // for now, as a test, just use the first equation only
-                let equation = &body[0];
-                let (mut coefficients, mut constant) = solve::formulate_equation(equation);
-                println!("Equation: {:?} = {:?}", coefficients, constant);
-                // now, we need to solve the equation
-                let solution = solve::solve_equation(&mut coefficients, &mut constant);
-                println!("Solution: {:?}", solution);
+                // let equation = &body[0];
+                // let (mut coefficients, mut constant) = solve::formulate_equation(equation);
+                // println!("Equation: {:?} = {:?}", coefficients, constant);
+                // // now, we need to solve the equation
+                // let solution = solve::solve_equation(&mut coefficients, &mut constant);
+                // println!("Solution: {:?}", solution);
 
                 // the solution applies to the variables in the rearranged equation
                 // so, we need to map the solution to the original variables
                 // for example for x + 1 = 2 * x, the solution is x = 1,
-                
-
+                let (coefficients,  constants) = solve::formulate_system(body, &known_values);
+                println!("System: {:?} = {:?}", coefficients, constants);
+                let solution = solve::solve_system(coefficients, constants);
+                println!("Solution: {:?}", solution);
                 return Ok(None);
             }
             

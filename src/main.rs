@@ -9,9 +9,15 @@ fn main() {
 
     let mut interpreter = interpreter::Interpreter::new();
     let code = r#"
+    #var x = 1
     math m {
-        x + y = 5
-        x - y = 1
+        # 2 * x + 2 = x - y
+        # 3 * x + 2 * y = 0
+
+        x = 1
+        y = x
+        # expect x = 1, y = 1
+        # actual x = -1, y = 0
     }
     "#;
 
