@@ -2,6 +2,8 @@
 
 This is a simple interpreted programming language written in Rust. I plan on making it a math-oriented programming language, perhaps to be used with a raspberry pi calculator?
 
+![image](https://github.com/user-attachments/assets/443e80e6-57b8-48ca-891d-20ce0fd40dbe)
+
 ## Supported features:
 - Variable declaration & assignment (integers only for now)
 - Immutable variables by default, mutable variables using the 'mut' keyword
